@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiPath } from '../config';
 
 function Login({ onLogin, onSwitchToRegister }) {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -15,7 +16,7 @@ function Login({ onLogin, onSwitchToRegister }) {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(apiPath('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -38,7 +39,7 @@ function Login({ onLogin, onSwitchToRegister }) {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+      const response = await fetch(apiPath('/api/auth/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })

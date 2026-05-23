@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiPath } from '../config';
 
 function Register({ onRegister, onSwitchToLogin }) {
   const [mode, setMode] = useState('user');
@@ -21,7 +22,7 @@ function Register({ onRegister, onSwitchToLogin }) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(apiPath('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userForm)
@@ -32,7 +33,7 @@ function Register({ onRegister, onSwitchToLogin }) {
         return;
       }
 
-      const loginResponse = await fetch('http://localhost:5000/api/auth/login', {
+      const loginResponse = await fetch(apiPath('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -53,7 +54,7 @@ function Register({ onRegister, onSwitchToLogin }) {
     setError('');
     setMessage('');
     try {
-      const response = await fetch('http://localhost:5000/api/access-requests', {
+      const response = await fetch(apiPath('/api/access-requests'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestForm)

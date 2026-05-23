@@ -1,6 +1,8 @@
 FROM node:20-alpine AS build
 
 WORKDIR /app
+ARG REACT_APP_API_ORIGIN=http://localhost:5000
+ENV REACT_APP_API_ORIGIN=$REACT_APP_API_ORIGIN
 COPY package*.json ./
 RUN npm ci
 COPY . .

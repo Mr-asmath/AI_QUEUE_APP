@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getLogoPreset, presetStyle } from '../visualPresets';
+import { apiPath } from '../config';
 
 const branchTypes = [
   { value: 'hospital', label: 'Hospital' },
@@ -113,7 +114,7 @@ function AdminDashboard({ user, onHome }) {
   const [message, setMessage] = useState('');
 
   const api = useCallback(async (path, options = {}) => {
-    const response = await fetch(`http://localhost:5000${path}`, {
+    const response = await fetch(apiPath(path), {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
       ...options

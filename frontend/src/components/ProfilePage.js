@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiPath } from '../config';
 
 function ProfilePage({ user, onUserUpdate, onLogout }) {
   const [activeSection, setActiveSection] = useState('account');
@@ -22,7 +23,7 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
   const [error, setError] = useState('');
 
   const api = async (path, options = {}) => {
-    const response = await fetch(`http://localhost:5000${path}`, {
+    const response = await fetch(apiPath(path), {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
       ...options

@@ -1,0 +1,25 @@
+services:
+  backend:
+    image: ghcr.io/mr-asmath/ai-queue-app-backend:latest
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/multi_industry_queue.db}
+      TOKEN_TTL_MINUTES: ${TOKEN_TTL_MINUTES:-60}
+      REMINDER_WINDOW_MINUTES: ${REMINDER_WINDOW_MINUTES:-10}
+      AUTOMATION_API_KEY: ${AUTOMATION_API_KEY:-local-automation-key}
+    volumes:
+      - queue-data:/data
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+
+  frontend:
+    image: ghcr.io/mr-asmath/ai-queue-app-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+
+volumes:
+  queue-data:

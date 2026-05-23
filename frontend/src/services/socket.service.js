@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { API_ORIGIN } from '../config';
 
 class SocketService {
   constructor() {
@@ -8,7 +9,7 @@ class SocketService {
 
   connect() {
     const token = localStorage.getItem('token');
-    this.socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
+    this.socket = io(process.env.REACT_APP_SOCKET_URL || API_ORIGIN, {
       auth: { token },
       transports: ['websocket'],
     });

@@ -8,6 +8,7 @@ import DoctorDashboard from './components/DoctorDashboard';
 import Navbar from './components/Navbar';
 import ResetPassword from './components/ResetPassword';
 import ProfilePage from './components/ProfilePage';
+import { apiPath } from './config';
 
 function App() {
   const initialResetToken = new URLSearchParams(window.location.search).get('reset_token');
@@ -18,7 +19,7 @@ function App() {
 
   const checkAuth = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/me', {
+      const response = await fetch(apiPath('/api/auth/me'), {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +59,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:5000/api/auth/logout', {
+      await fetch(apiPath('/api/auth/logout'), {
         method: 'POST',
         credentials: 'include'
       });

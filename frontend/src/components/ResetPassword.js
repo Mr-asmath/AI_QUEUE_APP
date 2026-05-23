@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiPath } from '../config';
 
 function ResetPassword({ token, onBackToLogin }) {
   const [formData, setFormData] = useState({ new_password: '', confirm_password: '' });
@@ -13,7 +14,7 @@ function ResetPassword({ token, onBackToLogin }) {
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/reset-password/${token}`, {
+      const response = await fetch(apiPath(`/api/auth/reset-password/${token}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { apiPath } from '../config';
 
 function UserDashboard({ user, onLogout }) {
   const [catalog, setCatalog] = useState({ industries: [], branches: [] });
@@ -12,7 +13,7 @@ function UserDashboard({ user, onLogout }) {
   const [message, setMessage] = useState('');
 
   const api = useCallback(async (path, options = {}) => {
-    const response = await fetch(`http://localhost:5000${path}`, {
+    const response = await fetch(apiPath(path), {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
       ...options
