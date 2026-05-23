@@ -3,7 +3,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 function DoctorDashboard({ user }) {
   const [tokens, setTokens] = useState([]);
   const [selectedItems, setSelectedItems] = useState({});
-  const [suggestionText, setSuggestionText] = useState({});
+  const [serviceRequirements, setServiceRequirements] = useState({});
+  const [aiSuggestions, setAiSuggestions] = useState({});
   const [message, setMessage] = useState('');
 
   const api = useCallback(async (path, options = {}) => {
@@ -27,9 +28,12 @@ function DoctorDashboard({ user }) {
   }, [refresh]);
 
   const askAi = async (tokenId) => {
-    const data = await api(`/api/provider/tokens/${tokenId}/ai-suggestion`, { method: 'POST' });
+    const data = await api(`/api/provider/tokens/${tokenId}/ai-suggestion`, {
+      method: 'POST',
+      body: JSON.stringify({ provider_requirements: serviceRequirements[tokenId] || '' })
+    });
     if (data.success) {
-      setSuggestionText({ ...suggestionText, [tokenId]: data.suggestion });
+      setAiSuggestions({ ...aiSuggestions, [tokenId]: data.suggestion });
       refresh();
     }
   };
@@ -44,10 +48,15 @@ function DoctorDashboard({ user }) {
   };
 
   const complete = async (tokenId) => {
+    const providerText = (serviceRequirements[tokenId] || '').trim();
+    const aiText = (aiSuggestions[tokenId] || '').trim();
+    const finalSuggestion = [providerText, aiText && `AI suggestion: ${aiText}`]
+      .filter(Boolean)
+      .join('\n\n');
     const data = await api(`/api/provider/tokens/${tokenId}/suggestion`, {
       method: 'POST',
       body: JSON.stringify({
-        suggestion_text: suggestionText[tokenId],
+        suggestion_text: finalSuggestion || 'Service completed.',
         selected_items: selectedItems[tokenId] || []
       })
     });
@@ -101,13 +110,23 @@ function DoctorDashboard({ user }) {
                 ))}
               </div>
 
-              <button onClick={() => askAi(token.token_id)}>Ask AI Suggestion</button>
-              <textarea
-                rows="4"
-                value={suggestionText[token.token_id] || token.ai_suggestion || ''}
-                onChange={(event) => setSuggestionText({ ...suggestionText, [token.token_id]: event.target.value })}
-                placeholder="Suggestion, next step, prescription, note, or service instruction"
-              />
+              <div className="provider-note-panel">
+                <label htmlFor={`requirements-${token.token_id}`}>Provider requirements</label>
+                <textarea
+                  id={`requirements-${token.token_id}`}
+                  rows="4"
+                  value={serviceRequirements[token.token_id] || ''}
+                  onChange={(event) => setServiceRequirements({ ...serviceRequirements, [token.token_id]: event.target.value })}
+                  placeholder="Type service requirements, notes, prescription, next step, or instruction"
+                />
+                <button type="button" onClick={() => askAi(token.token_id)}>Ask AI Suggestion</button>
+                {(aiSuggestions[token.token_id] || token.ai_suggestion) && (
+                  <div className="ai-suggestion-output">
+                    <strong>AI Suggestion</strong>
+                    <p>{aiSuggestions[token.token_id] || token.ai_suggestion}</p>
+                  </div>
+                )}
+              </div>
 
               <div className="checkbox-list">
                 {itemOptions(token).map((item) => (

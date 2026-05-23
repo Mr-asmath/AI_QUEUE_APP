@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { getLogoPreset, presetStyle } from '../visualPresets';
 
 const branchTypes = [
   { value: 'hospital', label: 'Hospital' },
@@ -9,7 +10,30 @@ const branchTypes = [
 ];
 
 const fieldTypes = ['text', 'int', 'float', 'image', 'date', 'select'];
-const aggregationOptions = ['total', 'average', 'count', 'min', 'max'];
+const aggregationOptions = [
+  { value: 'total', label: 'Total amount', description: 'Adds all selected item prices.' },
+  { value: 'average', label: 'Average amount', description: 'Shows the average price of selected items.' },
+  { value: 'count', label: 'Selected item count', description: 'Counts how many checkbox items were selected.' },
+  { value: 'min', label: 'Lowest amount', description: 'Shows the smallest selected item price.' },
+  { value: 'max', label: 'Highest amount', description: 'Shows the largest selected item price.' }
+];
+
+const userTypeTabs = [
+  { id: 'all', label: 'All Users' },
+  { id: 'main_admin', label: 'Main Admins' },
+  { id: 'industry_admin', label: 'Industry Admins' },
+  { id: 'queue_operator', label: 'Queue Managers' },
+  { id: 'service_provider', label: 'Queue Controllers' },
+  { id: 'user', label: 'Users' }
+];
+
+const roleLabels = {
+  main_admin: 'Main Admin',
+  industry_admin: 'Industry Admin',
+  queue_operator: 'Queue Manager',
+  service_provider: 'Queue Controller',
+  user: 'User'
+};
 
 const emptyBranch = {
   name: '',
@@ -60,15 +84,32 @@ const emptyBranch = {
   ]
 };
 
-function AdminDashboard({ user }) {
-  const [activeTab, setActiveTab] = useState(user.role === 'main_admin' ? 'requests' : 'branches');
+function AdminDashboard({ user, onHome }) {
+  const initialTab = user.role === 'main_admin' ? 'requests' : user.role === 'industry_admin' ? 'branches' : 'queue';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [requests, setRequests] = useState([]);
+  const [resetRequests, setResetRequests] = useState([]);
+  const [userDirectory, setUserDirectory] = useState({ users: [], grouped: {}, summary: null });
+  const [activeUserType, setActiveUserType] = useState('all');
+  const [userSearch, setUserSearch] = useState('');
   const [branches, setBranches] = useState([]);
   const [staff, setStaff] = useState([]);
   const [queue, setQueue] = useState([]);
+  const [queueHistory, setQueueHistory] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [historyFilters, setHistoryFilters] = useState({ q: '', date_from: '', date_to: '' });
   const [branchForm, setBranchForm] = useState(emptyBranch);
-  const [staffForm, setStaffForm] = useState({ name: '', email: '', phone: '', role: 'queue_operator', branch_id: '' });
+  const [staffForm, setStaffForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'queue_operator',
+    branch_id: '',
+    address: '',
+    designation: '',
+    emergency_contact: '',
+    personal_details: ''
+  });
   const [message, setMessage] = useState('');
 
   const api = useCallback(async (path, options = {}) => {
@@ -84,6 +125,18 @@ function AdminDashboard({ user }) {
     if (user.role === 'main_admin') {
       const data = await api('/api/admin/access-requests');
       if (data.success) setRequests(data.requests);
+      const directoryData = await api('/api/admin/users/directory');
+      if (directoryData.success) {
+        setUserDirectory({
+          users: directoryData.users || [],
+          grouped: directoryData.grouped || {},
+          summary: directoryData.summary || null
+        });
+      }
+    }
+    if (['main_admin', 'industry_admin'].includes(user.role)) {
+      const resetData = await api('/api/admin/password-reset-requests');
+      if (resetData.success) setResetRequests(resetData.requests);
     }
     if (user.role === 'industry_admin') {
       const branchData = await api('/api/industry/branches');
@@ -120,6 +173,22 @@ function AdminDashboard({ user }) {
     }
   };
 
+  const decideReset = async (id, decision) => {
+    const data = await api(`/api/admin/password-reset-requests/${id}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({
+        decision,
+        message: decision === 'approve' ? 'Default password generated and emailed.' : 'Password reset request rejected.'
+      })
+    });
+    if (data.success) {
+      setMessage(decision === 'approve' ? `Default password created: ${data.request.generated_password}` : 'Reset request rejected.');
+      refresh();
+    } else {
+      setMessage(data.error || 'Reset request failed.');
+    }
+  };
+
   const createBranch = async (event) => {
     event.preventDefault();
     const payload = {
@@ -135,6 +204,7 @@ function AdminDashboard({ user }) {
     if (data.success) {
       setMessage('Branch created with dashboard configuration.');
       setBranchForm(emptyBranch);
+      setActiveTab('branches');
       refresh();
     }
   };
@@ -144,7 +214,18 @@ function AdminDashboard({ user }) {
     const data = await api('/api/industry/staff', { method: 'POST', body: JSON.stringify(staffForm) });
     if (data.success) {
       setMessage(`Staff created. Password: ${data.staff.generated_password}`);
-      setStaffForm({ name: '', email: '', phone: '', role: 'queue_operator', branch_id: '' });
+      setStaffForm({
+        name: '',
+        email: '',
+        phone: '',
+        role: 'queue_operator',
+        branch_id: '',
+        address: '',
+        designation: '',
+        emergency_contact: '',
+        personal_details: ''
+      });
+      setActiveTab('staff');
       refresh();
     }
   };
@@ -157,6 +238,23 @@ function AdminDashboard({ user }) {
     if (data.success) refresh();
     else setMessage(data.error || 'Action failed');
   };
+
+  const loadQueueHistory = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (historyFilters.q.trim()) params.set('q', historyFilters.q.trim());
+    if (historyFilters.date_from) params.set('date_from', historyFilters.date_from);
+    if (historyFilters.date_to) params.set('date_to', historyFilters.date_to);
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const data = await api(`/api/operator/queue-history${suffix}`);
+    if (data.success) setQueueHistory(data.tokens || []);
+    else setMessage(data.error || 'Queue history failed.');
+  }, [api, historyFilters]);
+
+  useEffect(() => {
+    if (activeTab === 'queue-history') {
+      loadQueueHistory();
+    }
+  }, [activeTab, loadQueueHistory]);
 
   const toggleServiceProviderOption = (key) => {
     setBranchForm({
@@ -212,6 +310,44 @@ function AdminDashboard({ user }) {
     });
   };
 
+  const renderOptionList = (items, isSelected, onToggle) => (
+    <div className="option-listbox">
+      {items.map((item) => (
+        <button
+          type="button"
+          key={item.value || item[0] || item}
+          className={isSelected(item) ? 'option-row selected' : 'option-row'}
+          onClick={() => onToggle(item)}
+        >
+          <span className="option-check">{isSelected(item) ? 'x' : ''}</span>
+          <span className="option-copy">
+            <strong>{item.label || item[1] || item}</strong>
+            {item.description && <small>{item.description}</small>}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const logoPreset = getLogoPreset(user.industry_logo_preset);
+  const closeCreatePage = () => {
+    setActiveTab(activeTab === 'create-staff' ? 'staff' : 'branches');
+  };
+  const dashboardTabs = [
+    ...(user.role === 'main_admin' ? [{ id: 'requests', label: 'Access Requests' }] : []),
+    ...(user.role === 'main_admin' ? [{ id: 'user-management', label: 'User Management' }] : []),
+    ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Reset Requests' }] : []),
+    ...(user.role === 'industry_admin' ? [
+      { id: 'branches', label: 'Branches' },
+      { id: 'staff', label: 'Staff' }
+    ] : []),
+    { id: 'queue', label: 'Current Queue' },
+    { id: 'queue-history', label: 'Queue History' }
+  ];
+  const selectedTabValue = dashboardTabs.some((tab) => tab.id === activeTab)
+    ? activeTab
+    : dashboardTabs[0]?.id || 'queue';
+
   const updateSuggestionBox = (index, value) => {
     const suggestion_boxes = [...branchForm.dashboard_config.service_provider.suggestion_boxes];
     suggestion_boxes[index] = value;
@@ -242,11 +378,42 @@ function AdminDashboard({ user }) {
     setBranchForm({ ...branchForm, user_schema });
   };
 
+  const visibleUsers = activeUserType === 'all'
+    ? userDirectory.users
+    : (userDirectory.grouped[activeUserType] || []);
+  const normalizedUserSearch = userSearch.trim().toLowerCase();
+  const searchedUsers = normalizedUserSearch
+    ? visibleUsers.filter((item) => [
+        item.user_code,
+        item.name,
+        item.email,
+        item.phone,
+        item.company?.name,
+        item.branch?.name,
+        item.work?.designation,
+        item.details?.phone,
+        item.details?.emergency_contact,
+        item.details?.address,
+        item.details?.personal_details
+      ].some((value) => String(value || '').toLowerCase().includes(normalizedUserSearch)))
+    : visibleUsers;
+
   return (
     <div className="dashboard admin-dashboard">
       <div className="dashboard-header">
         <div>
-          <h1>{user.role === 'main_admin' ? 'Application Admin' : user.role === 'industry_admin' ? 'Industry Admin' : 'Queue Operator'}</h1>
+          <div className="title-with-home">
+            <h1>{user.role === 'main_admin' ? 'Application Admin' : user.role === 'industry_admin' ? 'Industry Admin' : 'Queue Operator'}</h1>
+            {user.role === 'industry_admin' && (
+              <button className="title-home-logo" onClick={onHome} aria-label="Home">
+                {user.industry_logo_url ? (
+                  <img src={user.industry_logo_url} alt="" />
+                ) : (
+                  <span style={presetStyle(logoPreset)}>{logoPreset.initials}</span>
+                )}
+              </button>
+            )}
+          </div>
           <p className="user-email">{user.industry_name || 'All industries'}</p>
         </div>
         <div className="stats-summary">
@@ -259,11 +426,33 @@ function AdminDashboard({ user }) {
       {message && <div className="success-message">{message}</div>}
 
       <div className="dashboard-tabs">
-        {user.role === 'main_admin' && <button className={activeTab === 'requests' ? 'active' : ''} onClick={() => setActiveTab('requests')}>Access Requests</button>}
-        {user.role === 'industry_admin' && <button className={activeTab === 'branches' ? 'active' : ''} onClick={() => setActiveTab('branches')}>Branches</button>}
-        {user.role === 'industry_admin' && <button className={activeTab === 'staff' ? 'active' : ''} onClick={() => setActiveTab('staff')}>Staff</button>}
-        <button className={activeTab === 'queue' ? 'active' : ''} onClick={() => setActiveTab('queue')}>Queue Control</button>
+        {dashboardTabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={activeTab === tab.id ? 'active' : ''}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+      <select
+        className="dashboard-tab-select"
+        value={selectedTabValue}
+        onChange={(event) => setActiveTab(event.target.value)}
+        aria-label="Dashboard menu"
+      >
+        {dashboardTabs.map((tab) => (
+          <option key={tab.id} value={tab.id}>{tab.label}</option>
+        ))}
+      </select>
+
+      {user.role === 'industry_admin' && activeTab === 'branches' && (
+        <button className="floating-action" onClick={() => setActiveTab('create-branch')} aria-label="Create branch">+</button>
+      )}
+      {user.role === 'industry_admin' && activeTab === 'staff' && (
+        <button className="floating-action" onClick={() => setActiveTab('create-staff')} aria-label="Create staff">+</button>
+      )}
 
       {activeTab === 'requests' && (
         <div className="grid-list">
@@ -286,26 +475,150 @@ function AdminDashboard({ user }) {
         </div>
       )}
 
-      {activeTab === 'branches' && (
-        <div className="split-layout">
+      {activeTab === 'reset-requests' && (
+        <div className="grid-list">
+          {resetRequests.map((item) => (
+            <div className="record-card" key={item.id}>
+              <div className="record-title">{item.requester_name}</div>
+              <p>{item.requester_role.replace('_', ' ')}</p>
+              <p>{item.requester_email}</p>
+              <span className={`badge ${item.status === 'pending' ? 'badge-warning' : item.status === 'approved' ? 'badge-success' : 'badge-danger'}`}>{item.status}</span>
+              {item.status === 'pending' && (
+                <div className="button-row">
+                  <button onClick={() => decideReset(item.id, 'approve')}>Create Default Password</button>
+                  <button className="danger-btn" onClick={() => decideReset(item.id, 'reject')}>Reject</button>
+                </div>
+              )}
+              {item.generated_password && <code>Default password: {item.generated_password}</code>}
+            </div>
+          ))}
+          {!resetRequests.length && <div className="empty-state">No password reset requests.</div>}
+        </div>
+      )}
+
+      {activeTab === 'user-management' && (
+        <div className="section-stack user-management">
+          <div className="section-heading">
+            <div>
+              <h3>User Management</h3>
+              <p>View every account by type with company, branch, work, and personal details.</p>
+            </div>
+          </div>
+
+          <div className="user-summary-grid">
+            <div className="summary-card">
+              <span>Total Users</span>
+              <strong>{userDirectory.summary?.total_users || 0}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Companies</span>
+              <strong>{userDirectory.summary?.companies || 0}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Branches</span>
+              <strong>{userDirectory.summary?.branches || 0}</strong>
+            </div>
+          </div>
+
+          <div className="user-type-tabs">
+            {userTypeTabs.map((tab) => (
+              <button
+                type="button"
+                key={tab.id}
+                className={activeUserType === tab.id ? 'active' : ''}
+                onClick={() => setActiveUserType(tab.id)}
+              >
+                {tab.label}
+                <span>{tab.id === 'all' ? userDirectory.users.length : (userDirectory.grouped[tab.id] || []).length}</span>
+              </button>
+            ))}
+          </div>
+
+          <select
+            className="dashboard-tab-select user-type-select"
+            value={activeUserType}
+            onChange={(event) => setActiveUserType(event.target.value)}
+            aria-label="User type"
+          >
+            {userTypeTabs.map((tab) => (
+              <option key={tab.id} value={tab.id}>
+                {tab.label} ({tab.id === 'all' ? userDirectory.users.length : (userDirectory.grouped[tab.id] || []).length})
+              </option>
+            ))}
+          </select>
+
+          <div className="directory-search">
+            <input
+              type="search"
+              value={userSearch}
+              onChange={(event) => setUserSearch(event.target.value)}
+              placeholder="Search name, branch, phone number, email, or 6-digit user ID"
+              aria-label="Search users"
+            />
+          </div>
+
+          <div className="user-directory-list">
+            {searchedUsers.map((item) => (
+              <article className="user-directory-card" key={item.id}>
+                <div className="user-card-header">
+                  <div>
+                    <h4>{item.name}</h4>
+                    <p>{item.email}</p>
+                    <code>User ID: {item.user_code || 'Pending'}</code>
+                  </div>
+                  <span className="badge badge-info">{roleLabels[item.role] || item.role}</span>
+                </div>
+
+                <div className="user-detail-grid">
+                  <section>
+                    <span>Company</span>
+                    <strong>{item.company?.name || 'No company'}</strong>
+                    <small>{item.company?.industry_type || 'Global account'}</small>
+                    {item.company?.details && <p>{item.company.details}</p>}
+                  </section>
+                  <section>
+                    <span>Branch</span>
+                    <strong>{item.branch?.name || 'No branch assigned'}</strong>
+                    <small>{item.branch?.branch_type || 'All branches'}</small>
+                    {item.branch?.details && <p>{item.branch.details}</p>}
+                  </section>
+                  <section>
+                    <span>Work</span>
+                    <strong>{item.work?.designation || roleLabels[item.role] || item.role}</strong>
+                    <small>{item.work?.token_count || 0} tokens, {item.work?.active_token_count || 0} active</small>
+                    {item.work?.must_reset_password && <p>Password reset required</p>}
+                  </section>
+                  <section>
+                    <span>Details</span>
+                    <strong>{item.details?.phone || 'No phone'}</strong>
+                    <small>{item.details?.emergency_contact || 'No emergency contact'}</small>
+                    {item.details?.address && <p>{item.details.address}</p>}
+                    {item.details?.personal_details && <p>{item.details.personal_details}</p>}
+                  </section>
+                </div>
+              </article>
+            ))}
+            {!searchedUsers.length && <div className="empty-state">No users found for this search.</div>}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'create-branch' && (
+        <div className="create-layout">
           <form className="control-panel" onSubmit={createBranch}>
-            <h3>Create Branch</h3>
+            <div className="form-title-row">
+              <h3>Create Branch</h3>
+              <button type="button" className="terminator-btn" onClick={closeCreatePage} aria-label="Close create branch">x</button>
+            </div>
             <input placeholder="Branch name" value={branchForm.name} onChange={(event) => setBranchForm({ ...branchForm, name: event.target.value })} required />
             <textarea placeholder="Details" value={branchForm.details} onChange={(event) => setBranchForm({ ...branchForm, details: event.target.value })} />
             <div className="checkbox-section">
               <h4>Branch type</h4>
-              <div className="checkbox-grid">
-                {branchTypes.map((type) => (
-                  <label key={type.value}>
-                    <input
-                      type="checkbox"
-                      checked={branchForm.branch_type === type.value}
-                      onChange={() => setBranchForm({ ...branchForm, branch_type: type.value })}
-                    />
-                    {type.label}
-                  </label>
-                ))}
-              </div>
+              {renderOptionList(
+                branchTypes,
+                (type) => branchForm.branch_type === type.value,
+                (type) => setBranchForm({ ...branchForm, branch_type: type.value })
+              )}
             </div>
             {branchForm.branch_type === 'other' && (
               <input placeholder="Other type name" value={branchForm.other_type_name} onChange={(event) => setBranchForm({ ...branchForm, other_type_name: event.target.value })} required />
@@ -313,8 +626,8 @@ function AdminDashboard({ user }) {
 
             <div className="checkbox-section">
               <h4>Service provider dashboard</h4>
-              <div className="checkbox-grid">
-                {[
+              {renderOptionList(
+                [
                   ['display_user_details', 'Display user details'],
                   ['display_previous_details', 'Display previous user details'],
                   ['display_next_details', 'Display next details'],
@@ -324,13 +637,10 @@ function AdminDashboard({ user }) {
                   ['display_cash_price', 'Display cash price totals'],
                   ['display_transactions', 'Display transactions'],
                   ['ai_suggestion', 'Display AI suggestion button']
-                ].map(([key, label]) => (
-                  <label key={key}>
-                    <input type="checkbox" checked={branchForm.dashboard_config.service_provider[key]} onChange={() => toggleServiceProviderOption(key)} />
-                    {label}
-                  </label>
-                ))}
-              </div>
+                ],
+                ([key]) => branchForm.dashboard_config.service_provider[key],
+                ([key]) => toggleServiceProviderOption(key)
+              )}
             </div>
 
             <div className="mini-builder">
@@ -370,38 +680,32 @@ function AdminDashboard({ user }) {
 
             <div className="checkbox-section">
               <h4>Aggregations</h4>
-              <div className="checkbox-grid">
-                {aggregationOptions.map((name) => (
-                  <label key={name}>
-                    <input type="checkbox" checked={branchForm.dashboard_config.service_provider.aggregations.includes(name)} onChange={() => toggleAggregation(name)} />
-                    {name}
-                  </label>
-                ))}
-              </div>
+              {renderOptionList(
+                aggregationOptions,
+                (item) => branchForm.dashboard_config.service_provider.aggregations.includes(item.value),
+                (item) => toggleAggregation(item.value)
+              )}
             </div>
 
             <div className="checkbox-section">
               <h4>Queue operator dashboard</h4>
-              <div className="checkbox-grid">
-                {[
+              {renderOptionList(
+                [
                   ['can_edit_user_details', 'Can edit user details'],
                   ['can_allocate_provider', 'Can allocate service provider'],
                   ['display_user_details', 'Display user details'],
                   ['display_previous_details', 'Display previous users'],
                   ['display_suggestions', 'Display suggestions']
-                ].map(([key, label]) => (
-                  <label key={key}>
-                    <input type="checkbox" checked={branchForm.dashboard_config.queue_operator[key]} onChange={() => toggleOperatorOption(key)} />
-                    {label}
-                  </label>
-                ))}
-              </div>
+                ],
+                ([key]) => branchForm.dashboard_config.queue_operator[key],
+                ([key]) => toggleOperatorOption(key)
+              )}
             </div>
 
             <div className="checkbox-section">
               <h4>User site options</h4>
-              <div className="checkbox-grid">
-                {[
+              {renderOptionList(
+                [
                   ['display_previous_suggestions', 'Display previous suggestions'],
                   ['display_current_suggestions', 'Display current suggestions'],
                   ['display_current_queue_count', 'Display current queue count'],
@@ -411,13 +715,10 @@ function AdminDashboard({ user }) {
                   ['display_transactions', 'Display transactions'],
                   ['display_operator_contact', 'Display operator contact'],
                   ['display_provider_contact', 'Display provider contact']
-                ].map(([key, label]) => (
-                  <label key={key}>
-                    <input type="checkbox" checked={branchForm.dashboard_config.user[key]} onChange={() => toggleUserOption(key)} />
-                    {label}
-                  </label>
-                ))}
-              </div>
+                ],
+                ([key]) => branchForm.dashboard_config.user[key],
+                ([key]) => toggleUserOption(key)
+              )}
             </div>
 
             <div className="mini-builder">
@@ -438,9 +739,12 @@ function AdminDashboard({ user }) {
               <button type="button" onClick={() => setBranchForm({ ...branchForm, user_schema: [...branchForm.user_schema, { key: '', type: 'text', required: true }] })}>Add User Field</button>
             </div>
 
-            <button type="submit">Create Branch</button>
+            <div className="form-actions">
+              <button type="button" className="secondary-btn" onClick={closeCreatePage}>Cancel</button>
+              <button type="submit">Create Branch</button>
+            </div>
           </form>
-          <div className="grid-list">
+          <div className="grid-list create-side-list">
             {branches.map((branch) => (
               <div className="record-card" key={branch.id}>
                 <div className="record-title">{branch.name}</div>
@@ -453,23 +757,36 @@ function AdminDashboard({ user }) {
         </div>
       )}
 
+      {activeTab === 'branches' && (
+        <div className="section-stack">
+          <div className="section-heading">
+            <div>
+              <h3>Created Branches</h3>
+              <p>Only branches created for this industry are shown here.</p>
+            </div>
+          </div>
+          <div className="grid-list">
+            {branches.map((branch) => (
+              <div className="record-card" key={branch.id}>
+                <div className="record-title">{branch.name}</div>
+                <p>{branch.branch_type}{branch.other_type_name ? ` / ${branch.other_type_name}` : ''}</p>
+                <p>{branch.details || 'No branch details added.'}</p>
+                <small>{branch.user_schema.map((field) => `${field.key}:${field.type}`).join(', ')}</small>
+              </div>
+            ))}
+            {!branches.length && <div className="empty-state">No branches created yet.</div>}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'staff' && (
-        <div className="split-layout">
-          <form className="control-panel" onSubmit={createStaff}>
-            <h3>Create Queue Manager or Provider</h3>
-            <input placeholder="Name" value={staffForm.name} onChange={(event) => setStaffForm({ ...staffForm, name: event.target.value })} required />
-            <input placeholder="Email" type="email" value={staffForm.email} onChange={(event) => setStaffForm({ ...staffForm, email: event.target.value })} required />
-            <input placeholder="Phone" value={staffForm.phone} onChange={(event) => setStaffForm({ ...staffForm, phone: event.target.value })} />
-            <select value={staffForm.role} onChange={(event) => setStaffForm({ ...staffForm, role: event.target.value })}>
-              <option value="queue_operator">Queue Operator</option>
-              <option value="service_provider">Service Provider</option>
-            </select>
-            <select value={staffForm.branch_id} onChange={(event) => setStaffForm({ ...staffForm, branch_id: event.target.value })} required>
-              <option value="">Select branch</option>
-              {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
-            </select>
-            <button type="submit">Create Staff</button>
-          </form>
+        <div className="section-stack">
+          <div className="section-heading">
+            <div>
+              <h3>Staff</h3>
+              <p>Queue managers and queue controllers created for branches.</p>
+            </div>
+          </div>
           <div className="grid-list">
             {staff.map((item) => (
               <div className="record-card" key={item.id}>
@@ -477,48 +794,176 @@ function AdminDashboard({ user }) {
                 <p>{item.role}</p>
                 <p>{item.email}</p>
                 <p>{item.branch_name}</p>
+                {item.designation && <small>{item.designation}</small>}
+                {item.address && <small>{item.address}</small>}
               </div>
             ))}
+            {!staff.length && <div className="empty-state">No staff created yet.</div>}
           </div>
         </div>
       )}
 
+      {activeTab === 'create-staff' && (
+        <div className="create-layout">
+          <form className="control-panel" onSubmit={createStaff}>
+            <div className="form-title-row">
+              <h3>Create Queue Manager or Provider</h3>
+              <button type="button" className="terminator-btn" onClick={closeCreatePage} aria-label="Close create staff">x</button>
+            </div>
+            <input placeholder="Name" value={staffForm.name} onChange={(event) => setStaffForm({ ...staffForm, name: event.target.value })} required />
+            <input placeholder="Email" type="email" value={staffForm.email} onChange={(event) => setStaffForm({ ...staffForm, email: event.target.value })} required />
+            <input placeholder="Phone" value={staffForm.phone} onChange={(event) => setStaffForm({ ...staffForm, phone: event.target.value })} />
+            <input placeholder="Designation" value={staffForm.designation} onChange={(event) => setStaffForm({ ...staffForm, designation: event.target.value })} />
+            <input placeholder="Emergency contact" value={staffForm.emergency_contact} onChange={(event) => setStaffForm({ ...staffForm, emergency_contact: event.target.value })} />
+            <textarea placeholder="Address" value={staffForm.address} onChange={(event) => setStaffForm({ ...staffForm, address: event.target.value })} />
+            <textarea placeholder="More personal details" value={staffForm.personal_details} onChange={(event) => setStaffForm({ ...staffForm, personal_details: event.target.value })} />
+            <select value={staffForm.role} onChange={(event) => setStaffForm({ ...staffForm, role: event.target.value })}>
+              <option value="queue_operator">Queue Manager</option>
+              <option value="service_provider">Queue Controller</option>
+            </select>
+            <select value={staffForm.branch_id} onChange={(event) => setStaffForm({ ...staffForm, branch_id: event.target.value })} required>
+              <option value="">Select branch</option>
+              {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+            </select>
+            <div className="form-actions">
+              <button type="button" className="secondary-btn" onClick={closeCreatePage}>Cancel</button>
+              <button type="submit">Create Staff</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {activeTab === 'queue' && (
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Token</th>
-                <th>User</th>
-                <th>Branch</th>
-                <th>Status</th>
-                <th>AI Suggestion</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {queue.map((token) => (
-                <tr key={token.token_id}>
-                  <td><strong>{token.token_code}</strong></td>
-                  <td>{token.user_name}<br /><small>{token.user_email}</small></td>
-                  <td>{token.branch_name}</td>
-                  <td><span className="badge badge-info">{token.status}</span></td>
-                  <td>{token.ai_suggestion}</td>
-                  <td>
-                    <div className="button-row">
-                      <button onClick={() => tokenAction(token.token_id, 'verify')}>Verify</button>
-                      <button onClick={() => tokenAction(token.token_id, 'customer_in')}>Customer In</button>
-                      <select onChange={(event) => event.target.value && tokenAction(token.token_id, 'allocate', event.target.value)} defaultValue="">
-                        <option value="">Allocate</option>
-                        {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
-                      </select>
-                      <button className="danger-btn" onClick={() => tokenAction(token.token_id, 'reject')}>Reject</button>
-                    </div>
-                  </td>
+        <div className="section-stack queue-control-view">
+          <div className="table-responsive">
+            <h3>Current Queue</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Token</th>
+                  <th>User</th>
+                  <th>Branch</th>
+                  <th>Status</th>
+                  <th>AI Suggestion</th>
+                  <th>Action</th>
                 </tr>
+              </thead>
+              <tbody>
+                {queue.map((token) => (
+                  <tr key={token.token_id}>
+                    <td><strong>{token.token_code}</strong><br /><small>ID: {token.user_code}</small></td>
+                    <td>{token.user_name}<br /><small>{token.user_email}</small></td>
+                    <td>{token.branch_name}</td>
+                    <td><span className="badge badge-info">{token.status}</span></td>
+                    <td>{token.ai_suggestion}</td>
+                    <td>
+                      <div className="button-row">
+                        <button onClick={() => tokenAction(token.token_id, 'verify')}>Verify</button>
+                        <button onClick={() => tokenAction(token.token_id, 'customer_in')}>Customer In</button>
+                        <select onChange={(event) => event.target.value && tokenAction(token.token_id, 'allocate', event.target.value)} defaultValue="">
+                          <option value="">Allocate</option>
+                          {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+                        </select>
+                        <button className="danger-btn" onClick={() => tokenAction(token.token_id, 'reject')}>Reject</button>
+                      </div>
+                    </td>
+                  </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        </div>
+      )}
+
+      {activeTab === 'queue-history' && (
+        <div className="section-stack queue-control-view">
+          <div className="queue-history-panel">
+            <div className="section-heading">
+              <div>
+                <h3>Queue History</h3>
+                <p>Search previous queue entries by user, token, branch, status, phone, email, or 6-digit ID.</p>
+              </div>
+            </div>
+            <form className="history-filter-grid" onSubmit={(event) => { event.preventDefault(); loadQueueHistory(); }}>
+              <div className="form-group">
+                <label>Search</label>
+                <input
+                  value={historyFilters.q}
+                  onChange={(event) => setHistoryFilters({ ...historyFilters, q: event.target.value })}
+                  placeholder="Name, phone, branch, token, ID"
+                />
+              </div>
+              <div className="form-group">
+                <label>Date from</label>
+                <input
+                  type="date"
+                  value={historyFilters.date_from}
+                  onChange={(event) => setHistoryFilters({ ...historyFilters, date_from: event.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Date to</label>
+                <input
+                  type="date"
+                  value={historyFilters.date_to}
+                  onChange={(event) => setHistoryFilters({ ...historyFilters, date_to: event.target.value })}
+                />
+              </div>
+              <button type="submit">Load History</button>
+            </form>
+
+            <div className="table-responsive">
+              <table className="data-table history-table">
+                <thead>
+                  <tr>
+                    <th>Token</th>
+                    <th>User</th>
+                    <th>Branch</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Provider</th>
+                    <th>Operator</th>
+                    <th>Details</th>
+                    <th>Suggestion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {queueHistory.map((token) => (
+                    <tr key={token.token_id}>
+                      <td><strong>{token.token_code}</strong></td>
+                      <td>
+                        {token.user_name}
+                        <br />
+                        <small>ID: {token.user_code || 'Pending'}</small>
+                        {token.user_email && (
+                          <>
+                            <br />
+                            <small>{token.user_email}</small>
+                          </>
+                        )}
+                      </td>
+                      <td>{token.branch_name}</td>
+                      <td><span className="badge badge-info">{token.status}</span></td>
+                      <td>{new Date(token.created_at).toLocaleString()}</td>
+                      <td>{token.provider_name || '-'}</td>
+                      <td>{token.operator_name || '-'}</td>
+                      <td>
+                        {token.details && Object.keys(token.details).length > 0
+                          ? Object.entries(token.details).map(([key, value]) => `${key}: ${value}`).join(', ')
+                          : '-'}
+                      </td>
+                      <td>{token.ai_suggestion || '-'}</td>
+                    </tr>
+                  ))}
+                  {!queueHistory.length && (
+                    <tr>
+                      <td colSpan="9" className="empty-table-cell">No queue history found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

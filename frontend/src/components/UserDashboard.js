@@ -83,6 +83,7 @@ function UserDashboard({ user, onLogout }) {
         <div>
           <h1>Queue Entry</h1>
           <p className="user-email">{user.name} - {user.email}</p>
+          <p className="user-email">User ID: {user.user_code || 'Pending'}</p>
         </div>
         <div className="stats-summary">
           <span className="stat">Waiting: {queueStatus?.waiting_count || 0}</span>

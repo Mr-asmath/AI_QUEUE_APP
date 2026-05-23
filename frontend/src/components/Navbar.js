@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { getAvatarPreset, getLogoPreset, initialsFor, presetStyle } from '../visualPresets';
 
-function Navbar({ user, activeView, onNavigate, onLogout }) {
+function Navbar({ user, onNavigate }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const roleLabel = {
     main_admin: 'Main Admin',
     industry_admin: 'Industry Admin',
@@ -13,25 +14,43 @@ function Navbar({ user, activeView, onNavigate, onLogout }) {
   const avatarPreset = getAvatarPreset(user.avatar_preset);
   const logoPreset = getLogoPreset(user.industry_logo_preset);
 
+  const navigate = (view) => {
+    setMenuOpen(false);
+    onNavigate(view);
+  };
+
   return (
     <nav className="navbar">
-      <div className="nav-brand">
+      <button className="nav-brand nav-home" onClick={() => navigate('dashboard')} aria-label="Go to dashboard">
         {user.industry_logo_url ? (
           <img className="brand-icon brand-image" src={user.industry_logo_url} alt="" />
         ) : (
           <span className="brand-icon" style={presetStyle(logoPreset)}>{logoPreset.initials}</span>
         )}
         <span className="brand-name">{user.industry_name || 'AI Queue Automation'}</span>
-      </div>
+      </button>
 
-      <div className="nav-menu">
-        <button className={activeView === 'dashboard' ? 'active' : ''} onClick={() => onNavigate('dashboard')}>Apps</button>
-        <button className={activeView === 'profile' ? 'active' : ''} onClick={() => onNavigate('profile')}>Your Profile</button>
+      <div className="nav-dropdown">
+        <button
+          type="button"
+          className="nav-dropdown-toggle"
+          onClick={() => setMenuOpen((current) => !current)}
+          aria-expanded={menuOpen}
+          aria-label="Open menu"
+        >
+          Menu <span aria-hidden="true">v</span>
+        </button>
+        {menuOpen && (
+          <div className="nav-dropdown-menu">
+            <button type="button" onClick={() => navigate('dashboard')}>Home</button>
+            <button type="button" onClick={() => navigate('profile')}>Project Page</button>
+          </div>
+        )}
       </div>
 
       <div className="nav-user">
         <span className="user-role">{roleLabel}</span>
-        <button className="profile-chip" onClick={() => onNavigate('profile')} aria-label="Open profile">
+        <button className="profile-chip" onClick={() => navigate('profile')} aria-label="Open profile">
           {user.avatar_url ? (
             <img className="profile-avatar" src={user.avatar_url} alt="" />
           ) : (
@@ -41,7 +60,6 @@ function Navbar({ user, activeView, onNavigate, onLogout }) {
           )}
           <span className="user-name">{user.name}</span>
         </button>
-        <button onClick={onLogout} className="logout-btn">Logout</button>
       </div>
     </nav>
   );

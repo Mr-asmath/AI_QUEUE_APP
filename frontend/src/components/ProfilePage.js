@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { avatarPresets, getAvatarPreset, getLogoPreset, logoPresets, initialsFor, presetStyle } from '../visualPresets';
 
-function ProfilePage({ user, onUserUpdate }) {
+function ProfilePage({ user, onUserUpdate, onLogout }) {
+  const [activeSection, setActiveSection] = useState('account');
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
     phone: user.phone || '',
+    address: user.address || '',
+    designation: user.designation || '',
+    emergency_contact: user.emergency_contact || '',
+    personal_details: user.personal_details || '',
     avatar_preset: user.avatar_preset || 'face-1',
     avatar_url: user.avatar_url || '',
     industry_logo_preset: user.industry_logo_preset || 'logo-1',
@@ -42,6 +46,20 @@ function ProfilePage({ user, onUserUpdate }) {
     }
   };
 
+  const handleImageUpload = (event, field, presetField) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfileForm((current) => ({
+        ...current,
+        [field]: reader.result,
+        ...(presetField ? { [presetField]: '' } : {})
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const changePassword = async (event) => {
     event.preventDefault();
     setMessage('');
@@ -58,6 +76,24 @@ function ProfilePage({ user, onUserUpdate }) {
     }
   };
 
+  const requestDefaultPassword = async () => {
+    setMessage('');
+    setError('');
+    const data = await api('/api/auth/request-default-password', { method: 'POST' });
+    if (data.success) {
+      setMessage(data.message || 'Password reset request sent to admin.');
+    } else {
+      setError(data.error || 'Password reset request failed.');
+    }
+  };
+
+  const profileSections = [
+    { id: 'account', label: 'Account Details' },
+    ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'logo', label: 'App Logo' }] : []),
+    { id: 'password', label: 'Change Password' },
+    { id: 'session', label: 'Account Session' }
+  ];
+
   return (
     <div className="dashboard profile-page">
       <div className="dashboard-header">
@@ -65,9 +101,7 @@ function ProfilePage({ user, onUserUpdate }) {
           {profileForm.avatar_url ? (
             <img className="profile-hero-avatar" src={profileForm.avatar_url} alt="" />
           ) : (
-            <span className="profile-hero-avatar" style={presetStyle(getAvatarPreset(profileForm.avatar_preset))}>
-              {initialsFor(profileForm.name, getAvatarPreset(profileForm.avatar_preset).initials)}
-            </span>
+            <span className="profile-hero-avatar upload-placeholder">Image</span>
           )}
           <div>
           <h1>Your Profile</h1>
@@ -82,8 +116,23 @@ function ProfilePage({ user, onUserUpdate }) {
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}
 
-      <div className="profile-grid">
-        <form className="control-panel" onSubmit={saveProfile}>
+      <div className="profile-shell">
+        <aside className="profile-side-nav">
+          {profileSections.map((section) => (
+            <button
+              type="button"
+              key={section.id}
+              className={activeSection === section.id ? 'active' : ''}
+              onClick={() => setActiveSection(section.id)}
+            >
+              {section.label}
+            </button>
+          ))}
+        </aside>
+
+        <div className="profile-section-view">
+        {activeSection === 'account' && (
+          <form className="control-panel" onSubmit={saveProfile}>
           <h3>Account Details</h3>
           <div className="form-group">
             <label>Name</label>
@@ -94,82 +143,68 @@ function ProfilePage({ user, onUserUpdate }) {
             <input value={user.email} disabled />
           </div>
           <div className="form-group">
+            <label>6-digit user ID</label>
+            <input value={user.user_code || 'Pending'} disabled />
+          </div>
+          <div className="form-group">
             <label>Phone</label>
             <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} />
           </div>
-          <div className="preset-section">
-            <label>Default face</label>
-            <div className="preset-grid avatar-preset-grid">
-              {avatarPresets.map((preset) => (
-                <button
-                  type="button"
-                  className={profileForm.avatar_preset === preset.id ? 'preset-tile active' : 'preset-tile'}
-                  onClick={() => setProfileForm({ ...profileForm, avatar_preset: preset.id, avatar_url: '' })}
-                  key={preset.id}
-                >
-                  <span className="preset-circle" style={presetStyle(preset)}>{initialsFor(profileForm.name, preset.initials)}</span>
-                  <small>{preset.label}</small>
-                </button>
-              ))}
-            </div>
+          <div className="form-group">
+            <label>Address</label>
+            <textarea value={profileForm.address} onChange={(event) => setProfileForm({ ...profileForm, address: event.target.value })} />
           </div>
           <div className="form-group">
-            <label>Own profile image URL</label>
+            <label>Designation</label>
+            <input value={profileForm.designation} onChange={(event) => setProfileForm({ ...profileForm, designation: event.target.value })} />
+          </div>
+          <div className="form-group">
+            <label>Emergency contact</label>
+            <input value={profileForm.emergency_contact} onChange={(event) => setProfileForm({ ...profileForm, emergency_contact: event.target.value })} />
+          </div>
+          <div className="form-group">
+            <label>More personal details</label>
+            <textarea value={profileForm.personal_details} onChange={(event) => setProfileForm({ ...profileForm, personal_details: event.target.value })} />
+          </div>
+          <div className="form-group">
+            <label>Upload profile image</label>
             <input
-              type="url"
-              placeholder="https://example.com/photo.jpg"
-              value={profileForm.avatar_url}
-              onChange={(event) => setProfileForm({ ...profileForm, avatar_url: event.target.value })}
+              type="file"
+              accept="image/*"
+              onChange={(event) => handleImageUpload(event, 'avatar_url', 'avatar_preset')}
             />
           </div>
           <button type="submit">Save Profile</button>
         </form>
+        )}
 
-        {['industry_admin', 'main_admin'].includes(user.role) && (
+        {activeSection === 'logo' && ['industry_admin', 'main_admin'].includes(user.role) && (
           <form className="control-panel" onSubmit={saveProfile}>
             <h3>App Logo</h3>
             <div className="brand-preview">
               {profileForm.industry_logo_url ? (
                 <img className="brand-preview-icon" src={profileForm.industry_logo_url} alt="" />
               ) : (
-                <span className="brand-preview-icon" style={presetStyle(getLogoPreset(profileForm.industry_logo_preset))}>
-                  {getLogoPreset(profileForm.industry_logo_preset).initials}
-                </span>
+                <span className="brand-preview-icon upload-placeholder">Logo</span>
               )}
               <div>
                 <strong>{user.industry_name || 'AI Queue Automation'}</strong>
                 <span>Header logo preview</span>
               </div>
             </div>
-            <div className="preset-section">
-              <label>Default logos</label>
-              <div className="preset-grid">
-                {logoPresets.map((preset) => (
-                  <button
-                    type="button"
-                    className={profileForm.industry_logo_preset === preset.id ? 'preset-tile active' : 'preset-tile'}
-                    onClick={() => setProfileForm({ ...profileForm, industry_logo_preset: preset.id, industry_logo_url: '' })}
-                    key={preset.id}
-                  >
-                    <span className="preset-square" style={presetStyle(preset)}>{preset.initials}</span>
-                    <small>{preset.label}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="form-group">
-              <label>Own logo image URL</label>
+              <label>Upload project logo</label>
               <input
-                type="url"
-                placeholder="https://example.com/logo.png"
-                value={profileForm.industry_logo_url}
-                onChange={(event) => setProfileForm({ ...profileForm, industry_logo_url: event.target.value })}
+                type="file"
+                accept="image/*"
+                onChange={(event) => handleImageUpload(event, 'industry_logo_url', 'industry_logo_preset')}
               />
             </div>
             <button type="submit">Save Logo</button>
           </form>
         )}
 
+        {activeSection === 'password' && (
         <form className="control-panel" onSubmit={changePassword}>
           <h3>Change Password</h3>
           <div className="form-group">
@@ -191,8 +226,21 @@ function ProfilePage({ user, onUserUpdate }) {
               required
             />
           </div>
-          <button type="submit">Update Password</button>
+          <div className="form-actions">
+            <button type="button" className="secondary-btn" onClick={requestDefaultPassword}>Forgot Password</button>
+            <button type="submit">Update Password</button>
+          </div>
         </form>
+        )}
+
+        {activeSection === 'session' && (
+        <section className="control-panel">
+          <h3>Account Session</h3>
+          <p className="muted-text">Sign out from this project dashboard.</p>
+          <button type="button" className="logout-btn profile-logout" onClick={onLogout}>Logout</button>
+        </section>
+        )}
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -16,11 +16,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const response = await fetch('http://localhost:5000/api/auth/me', {
         credentials: 'include',
@@ -47,7 +43,11 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [resetToken]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -89,7 +89,7 @@ function App() {
       case 'main_admin':
       case 'industry_admin':
       case 'queue_operator':
-        return <AdminDashboard user={user} onLogout={handleLogout} />;
+        return <AdminDashboard user={user} onHome={() => setCurrentView('dashboard')} />;
       case 'doctor':
       case 'service_provider':
         return <DoctorDashboard user={user} onLogout={handleLogout} />;
@@ -103,9 +103,7 @@ function App() {
       {user && (
         <Navbar
           user={user}
-          activeView={currentView}
           onNavigate={setCurrentView}
-          onLogout={handleLogout}
         />
       )}
       
@@ -138,7 +136,7 @@ function App() {
         {currentView === 'dashboard' && renderDashboard()}
 
         {currentView === 'profile' && user && (
-          <ProfilePage user={user} onUserUpdate={handleUserUpdate} />
+          <ProfilePage user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />
         )}
       </main>
     </div>

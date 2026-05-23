@@ -42,11 +42,16 @@ class User(db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
+    user_code = db.Column(db.String(6), unique=True, index=True)
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(30), default="user", nullable=False)
     phone = db.Column(db.String(40))
+    address = db.Column(db.Text)
+    designation = db.Column(db.String(120))
+    emergency_contact = db.Column(db.String(80))
+    personal_details = db.Column(db.Text)
     industry_id = db.Column(db.Integer, db.ForeignKey("industries.id"))
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"))
     must_reset_password = db.Column(db.Boolean, default=False)
@@ -229,6 +234,19 @@ def generate_reset_token():
     return secrets.token_urlsafe(40)
 
 
+def generate_user_code():
+    for _ in range(100):
+        code = "".join(secrets.choice(string.digits) for _ in range(6))
+        existing = db.session.execute(
+            db.text("SELECT id FROM users WHERE user_code = :code LIMIT 1"),
+            {"code": code},
+        ).first()
+        if code != "000000" and not existing:
+            return code
+    highest_id = db.session.execute(db.text("SELECT COALESCE(MAX(id), 0) FROM users")).scalar() + 1
+    return str(100000 + highest_id)[-6:]
+
+
 def send_email(to_email, subject, body):
     host = os.getenv("SMTP_HOST")
     port = int(os.getenv("SMTP_PORT", "587"))
@@ -268,6 +286,16 @@ def send_password_reset_email(user, reset_url):
         "This link expires in 30 minutes. If you did not request it, you can ignore this email.\n"
     )
     return send_email(user.email, "Reset your AI Queue Automation password", body)
+
+
+def send_default_password_email(user, password):
+    body = (
+        f"Hello {user.name},\n\n"
+        "Your AI Queue Automation default password has been reset by an admin.\n"
+        f"Default password: {password}\n\n"
+        "Please sign in and change this password from your profile page.\n"
+    )
+    return send_email(user.email, "Your AI Queue Automation default password", body)
 
 
 def normalize_details(details):
@@ -329,10 +357,15 @@ def user_schema(branch):
 def serialize_user(user):
     return {
         "id": user.id,
+        "user_code": user.user_code,
         "name": user.name,
         "email": user.email,
         "role": user.role,
         "phone": user.phone,
+        "address": user.address,
+        "designation": user.designation,
+        "emergency_contact": user.emergency_contact,
+        "personal_details": user.personal_details,
         "industry_id": user.industry_id,
         "industry_name": user.industry.name if user.industry else None,
         "branch_id": user.branch_id,
@@ -361,6 +394,47 @@ def serialize_branch(branch):
     }
 
 
+def serialize_admin_user_directory_entry(user):
+    token_count = Token.query.filter_by(user_id=user.id).count()
+    active_token_count = Token.query.filter(
+        Token.user_id == user.id,
+        Token.status.in_(ACTIVE_TOKEN_STATUSES),
+    ).count()
+    industry = user.industry
+    branch = user.branch
+    return {
+        **serialize_user(user),
+        "company": {
+            "id": industry.id if industry else None,
+            "name": industry.name if industry else None,
+            "industry_type": industry.industry_type if industry else None,
+            "other_type_name": industry.other_type_name if industry else None,
+            "details": industry.details if industry else None,
+        },
+        "branch": {
+            "id": branch.id if branch else None,
+            "name": branch.name if branch else None,
+            "branch_type": branch.branch_type if branch else None,
+            "other_type_name": branch.other_type_name if branch else None,
+            "details": branch.details if branch else None,
+        },
+        "work": {
+            "role": user.role,
+            "designation": user.designation,
+            "must_reset_password": user.must_reset_password,
+            "token_count": token_count,
+            "active_token_count": active_token_count,
+        },
+        "details": {
+            "phone": user.phone,
+            "address": user.address,
+            "emergency_contact": user.emergency_contact,
+            "personal_details": user.personal_details,
+            "created_at": user.created_at.isoformat() + "Z" if user.created_at else None,
+        },
+    }
+
+
 def serialize_token(token):
     seconds_left = max(0, int((token.expires_at - datetime.utcnow()).total_seconds()))
     return {
@@ -369,6 +443,7 @@ def serialize_token(token):
         "token_number": token.token_number,
         "status": token.status,
         "user_id": token.user_id,
+        "user_code": token.user.user_code,
         "user_name": token.user.name,
         "user_email": token.user.email,
         "industry_id": token.industry_id,
@@ -409,7 +484,19 @@ def estimated_wait(branch_id):
     return waiting * 5
 
 
-def make_ai_suggestion(token):
+def clean_suggestion_text(value, limit=160):
+    text = " ".join(str(value or "").split())
+    legacy_marker = " Check identity,"
+    if legacy_marker in text:
+        text = text.split(legacy_marker, 1)[0].rstrip(".,;:")
+    text = text.replace(" route to .", ".").replace(" route to.", ".")
+    if len(text) <= limit:
+        return text
+    clipped = text[:limit].rsplit(" ", 1)[0].rstrip(".,;:")
+    return f"{clipped}..."
+
+
+def make_ai_suggestion(token, provider_requirements=None):
     details = as_json(token.details_json, {})
     need = (
         details.get("need")
@@ -425,14 +512,18 @@ def make_ai_suggestion(token):
         .order_by(Suggestion.created_at.desc())
         .first()
     )
-    previous_text = (
-        f" Previous note: {previous.suggestion_text[:120]}." if previous else ""
-    )
-    return (
-        f"Review {token.user.name}'s {branch_type} request for {need}. "
-        f"Check identity, urgency, payment/status fields, and route to the right provider."
-        f"{previous_text}"
-    )
+    provider_text = (provider_requirements or "").strip()
+    action_source = clean_suggestion_text(provider_text or need, 180)
+    previous_note = clean_suggestion_text(previous.suggestion_text, 140) if previous else ""
+    parts = [
+        f"Suggested action: {action_source}.",
+        f"Customer request: {clean_suggestion_text(need, 120)}.",
+        f"Service area: {branch_type}.",
+    ]
+    if previous_note:
+        parts.append(f"Previous note: {previous_note}.")
+    parts.append("Complete the service with a clear final note for the user.")
+    return " ".join(parts)
 
 
 def require_same_industry(user, industry_id):
@@ -456,6 +547,7 @@ def register():
     user = User(
         name=data["name"].strip(),
         email=email,
+        user_code=generate_user_code(),
         phone=data.get("phone"),
         role="user",
     )
@@ -540,6 +632,44 @@ def forgot_password():
     return jsonify(response), 200
 
 
+@app.route("/api/auth/request-default-password", methods=["POST"])
+@login_required
+def request_default_password():
+    user = current_user()
+    if user.role == "main_admin":
+        return jsonify({"success": False, "error": "Main admin cannot request admin approval from this page"}), 400
+
+    if user.role == "industry_admin":
+        admin = User.query.filter_by(role="main_admin").order_by(User.id.asc()).first()
+    else:
+        admin = None
+        if user.industry and user.industry.admin_id:
+            admin = db.session.get(User, user.industry.admin_id)
+
+    if not admin:
+        return jsonify({"success": False, "error": "Admin account not found for this reset request"}), 404
+
+    pending = PasswordResetRequest.query.filter_by(user_id=user.id, status="pending").first()
+    if pending:
+        return jsonify({"success": True, "message": "A password reset request is already pending."}), 200
+
+    item = PasswordResetRequest(
+        user_id=user.id,
+        admin_id=admin.id,
+        requester_name=user.name,
+        requester_email=user.email,
+        requester_role=user.role,
+    )
+    db.session.add(item)
+    create_notification(
+        admin.id,
+        f"{user.name} requested a default password reset.",
+        "password_reset_request",
+    )
+    db.session.commit()
+    return jsonify({"success": True, "message": "Password reset request sent to admin."}), 201
+
+
 @app.route("/api/auth/reset-password/<token>", methods=["POST"])
 def reset_password_with_token(token):
     data = request.get_json() or {}
@@ -576,6 +706,10 @@ def update_profile():
         return jsonify({"success": False, "error": "Name is required"}), 400
     user.name = name
     user.phone = phone
+    user.address = (data.get("address") or "").strip() or None
+    user.designation = (data.get("designation") or "").strip() or None
+    user.emergency_contact = (data.get("emergency_contact") or "").strip() or None
+    user.personal_details = (data.get("personal_details") or "").strip() or None
     user.avatar_preset = (data.get("avatar_preset") or "face-1").strip()
     user.avatar_url = (data.get("avatar_url") or "").strip() or None
     if user.role in ("industry_admin", "main_admin") and user.industry:
@@ -637,6 +771,7 @@ def decide_password_reset_request(request_id):
             "Your password reset request was approved. Contact your admin for the default password.",
             "password_reset_approved",
         )
+        send_default_password_email(target, password)
     else:
         create_notification(
             target.id,
@@ -716,6 +851,70 @@ def list_access_requests():
     ), 200
 
 
+@app.route("/api/admin/users/directory")
+@login_required
+@role_required("main_admin")
+def admin_user_directory():
+    users = User.query.order_by(User.role.asc(), User.created_at.desc()).all()
+    industries = Industry.query.order_by(Industry.name.asc()).all()
+    branches = Branch.query.order_by(Branch.name.asc()).all()
+    roles = ("main_admin", "industry_admin", "queue_operator", "service_provider", "user")
+    grouped = {role: [] for role in roles}
+    for item in users:
+        grouped.setdefault(item.role, []).append(serialize_admin_user_directory_entry(item))
+    return jsonify(
+        {
+            "success": True,
+            "users": [serialize_admin_user_directory_entry(item) for item in users],
+            "grouped": grouped,
+            "summary": {
+                "total_users": len(users),
+                "companies": len(industries),
+                "branches": len(branches),
+                "roles": {role: len(grouped.get(role, [])) for role in grouped},
+            },
+        }
+    ), 200
+
+
+@app.route("/api/industry/users/search")
+@login_required
+@role_required("industry_admin", "queue_operator", "service_provider")
+def industry_user_search():
+    user = current_user()
+    query_text = (request.args.get("q") or "").strip().lower()
+    if len(query_text) < 2:
+        return jsonify({"success": True, "users": []}), 200
+
+    same_company_user_ids = [
+        row[0]
+        for row in Token.query.filter_by(industry_id=user.industry_id)
+        .with_entities(Token.user_id)
+        .distinct()
+        .all()
+    ]
+    matching_users = (
+        User.query.filter(
+            User.role == "user",
+            (User.industry_id == user.industry_id) | (User.id.in_(same_company_user_ids)),
+        )
+        .order_by(User.name.asc())
+        .all()
+    )
+    results = []
+    for item in matching_users:
+        values = [
+            item.user_code,
+            item.name,
+            item.email,
+            item.phone,
+            item.branch.name if item.branch else "",
+        ]
+        if any(query_text in str(value or "").lower() for value in values):
+            results.append(serialize_admin_user_directory_entry(item))
+    return jsonify({"success": True, "users": results[:20]}), 200
+
+
 @app.route("/api/admin/access-requests/<int:request_id>/decision", methods=["POST"])
 @login_required
 @role_required("main_admin")
@@ -737,6 +936,7 @@ def decide_access_request(request_id):
         admin = User(
             name=access_request.admin_name,
             email=access_request.admin_email,
+            user_code=generate_user_code(),
             phone=access_request.admin_phone,
             role="industry_admin",
             must_reset_password=True,
@@ -868,7 +1068,12 @@ def industry_staff():
     staff = User(
         name=data.get("name", "").strip(),
         email=email,
+        user_code=generate_user_code(),
         phone=data.get("phone"),
+        address=(data.get("address") or "").strip() or None,
+        designation=(data.get("designation") or "").strip() or None,
+        emergency_contact=(data.get("emergency_contact") or "").strip() or None,
+        personal_details=(data.get("personal_details") or "").strip() or None,
         role=data["role"],
         industry_id=user.industry_id,
         branch_id=branch.id,
@@ -929,7 +1134,6 @@ def generate_token():
         duplicate_key=duplicate_key,
         expires_at=datetime.utcnow() + timedelta(minutes=TOKEN_TTL_MINUTES),
     )
-    token.ai_suggestion = make_ai_suggestion(token)
     db.session.add(token)
 
     for operator in User.query.filter_by(role="queue_operator", branch_id=branch.id).all():
@@ -1018,6 +1222,56 @@ def operator_queue():
     ), 200
 
 
+@app.route("/api/operator/queue-history")
+@login_required
+@role_required("queue_operator", "industry_admin", "main_admin")
+def operator_queue_history():
+    user = current_user()
+    query_text = (request.args.get("q") or "").strip().lower()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+
+    query = Token.query
+    if user.role == "queue_operator":
+        query = query.filter(Token.branch_id == user.branch_id)
+    elif user.role == "industry_admin":
+        query = query.filter(Token.industry_id == user.industry_id)
+
+    if date_from:
+        try:
+            query = query.filter(Token.created_at >= datetime.fromisoformat(date_from))
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid from date"}), 400
+    if date_to:
+        try:
+            query = query.filter(Token.created_at < datetime.fromisoformat(date_to) + timedelta(days=1))
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid to date"}), 400
+
+    tokens = query.order_by(Token.created_at.desc()).limit(200).all()
+    if query_text:
+        tokens = [
+            token for token in tokens
+            if any(
+                query_text in str(value or "").lower()
+                for value in (
+                    token.token_code,
+                    token.status,
+                    token.user.user_code,
+                    token.user.name,
+                    token.user.email,
+                    token.user.phone,
+                    token.branch.name,
+                    token.industry.name,
+                    token.provider.name if token.provider else "",
+                    token.operator.name if token.operator else "",
+                )
+            )
+        ]
+
+    return jsonify({"success": True, "tokens": [serialize_token(token) for token in tokens]}), 200
+
+
 @app.route("/api/operator/tokens/<int:token_id>/action", methods=["POST"])
 @login_required
 @role_required("queue_operator", "industry_admin", "main_admin")
@@ -1084,12 +1338,13 @@ def provider_tokens():
 @role_required("service_provider", "industry_admin", "main_admin")
 def provider_ai_suggestion(token_id):
     user = current_user()
+    data = request.get_json() or {}
     token = db.session.get(Token, token_id)
     if not token or not require_same_industry(user, token.industry_id):
         return jsonify({"success": False, "error": "Token not found"}), 404
     if user.role == "service_provider" and token.provider_id != user.id:
         return jsonify({"success": False, "error": "Token is not allocated to you"}), 403
-    token.ai_suggestion = make_ai_suggestion(token)
+    token.ai_suggestion = make_ai_suggestion(token, data.get("provider_requirements"))
     db.session.commit()
     return jsonify({"success": True, "suggestion": token.ai_suggestion}), 200
 
@@ -1260,19 +1515,26 @@ def automation_run():
 
 
 def seed_data():
-    if User.query.filter_by(role="main_admin").first():
+    existing_admin = db.session.execute(
+        db.text("SELECT id FROM users WHERE role = :role LIMIT 1"),
+        {"role": "main_admin"},
+    ).first()
+    if existing_admin:
         return
 
-    main_admin = User(name="Application Admin", email="admin@queue.com", role="main_admin")
+    main_admin = User(name="Application Admin", email="admin@queue.com", role="main_admin", user_code=generate_user_code())
     main_admin.set_password("admin123")
+    db.session.add(main_admin)
+    db.session.flush()
     industry_admin = User(
         name="Demo Industry Admin",
         email="industry@queue.com",
+        user_code=generate_user_code(),
         role="industry_admin",
         phone="9000000001",
     )
     industry_admin.set_password("demo123")
-    db.session.add_all([main_admin, industry_admin])
+    db.session.add(industry_admin)
     db.session.flush()
 
     industry = Industry(
@@ -1331,36 +1593,52 @@ def seed_data():
     operator = User(
         name="Demo Operator",
         email="operator@queue.com",
+        user_code=generate_user_code(),
         role="queue_operator",
         phone="9000000002",
         industry_id=industry.id,
         branch_id=branch.id,
     )
     operator.set_password("demo123")
+    db.session.add(operator)
+    db.session.flush()
     provider = User(
         name="Demo Provider",
         email="provider@queue.com",
+        user_code=generate_user_code(),
         role="service_provider",
         phone="9000000003",
         industry_id=industry.id,
         branch_id=branch.id,
     )
     provider.set_password("demo123")
-    db.session.add_all([operator, provider])
+    db.session.add(provider)
     db.session.commit()
 
 
 def ensure_schema_updates():
     engine_name = db.engine.dialect.name
     inspector = inspect(db.engine)
+    if not inspector.has_table("users") or not inspector.has_table("industries"):
+        return
     user_columns = {column["name"] for column in inspector.get_columns("users")}
     industry_columns = {column["name"] for column in inspector.get_columns("industries")}
 
     statements = []
+    if "user_code" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN user_code VARCHAR(6)")
     if "avatar_url" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN avatar_url TEXT")
     if "avatar_preset" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN avatar_preset VARCHAR(40) DEFAULT 'face-1'")
+    if "address" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN address TEXT")
+    if "designation" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN designation VARCHAR(120)")
+    if "emergency_contact" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN emergency_contact VARCHAR(80)")
+    if "personal_details" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN personal_details TEXT")
     if "logo_url" not in industry_columns:
         statements.append("ALTER TABLE industries ADD COLUMN logo_url TEXT")
     if "logo_preset" not in industry_columns:
@@ -1370,6 +1648,10 @@ def ensure_schema_updates():
         with db.engine.begin() as connection:
             for statement in statements:
                 connection.exec_driver_sql(statement)
+
+    for item in User.query.filter((User.user_code.is_(None)) | (User.user_code == "")).all():
+        item.user_code = generate_user_code()
+    db.session.commit()
 
 
 with app.app_context():
