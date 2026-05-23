@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-queue-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-queue-backend
+  template:
+    metadata:
+      labels:
+        app: ai-queue-backend
+    spec:
+      containers:
+        - name: backend
+          image: ai-queue-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-queue-secrets
+                  key: secret-key
+            - name: DATABASE_URL
+              value: sqlite:////data/multi_industry_queue.db
+            - name: TOKEN_TTL_MINUTES
+              value: "60"
+            - name: REMINDER_WINDOW_MINUTES
+              value: "10"
+            - name: AUTOMATION_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-queue-secrets
+                  key: automation-api-key
+          volumeMounts:
+            - name: queue-data
+              mountPath: /data
+      volumes:
+        - name: queue-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-queue-backend
+spec:
+  selector:
+    app: ai-queue-backend
+  ports:
+    - port: 5000
+      targetPort: 5000

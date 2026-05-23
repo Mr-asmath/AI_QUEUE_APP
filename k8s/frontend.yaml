@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-queue-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-queue-frontend
+  template:
+    metadata:
+      labels:
+        app: ai-queue-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ai-queue-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-queue-frontend
+spec:
+  type: LoadBalancer
+  selector:
+    app: ai-queue-frontend
+  ports:
+    - port: 80
+      targetPort: 80

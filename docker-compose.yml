@@ -1,0 +1,36 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      SECRET_KEY: change-me
+      DATABASE_URL: sqlite:////data/multi_industry_queue.db
+      TOKEN_TTL_MINUTES: 60
+      REMINDER_WINDOW_MINUTES: 10
+      AUTOMATION_API_KEY: local-automation-key
+    volumes:
+      - queue-data:/data
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: admin123
+      WEBHOOK_URL: http://localhost:5678
+    volumes:
+      - n8n-data:/home/node/.n8n
+
+volumes:
+  queue-data:
+  n8n-data:
