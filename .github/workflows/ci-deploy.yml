@@ -17,7 +17,7 @@ permissions:
 env:
   BACKEND_IMAGE: ghcr.io/mr-asmath/ai-queue-app-backend
   FRONTEND_IMAGE: ghcr.io/mr-asmath/ai-queue-app-frontend
-  FRONTEND_API_ORIGIN: ${{ vars.REACT_APP_API_ORIGIN || 'http://localhost:5000' }}
+  FRONTEND_API_ORIGIN: ${{ vars.REACT_APP_API_ORIGIN || 'https://ai-queue-app-backend.onrender.com' }}
 
 jobs:
   backend:
