@@ -18,6 +18,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 load_dotenv()
 
 app = Flask(__name__)
+os.makedirs(app.instance_path, exist_ok=True)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///multi_industry_queue.db"
