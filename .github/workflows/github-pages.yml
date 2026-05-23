@@ -18,6 +18,7 @@ concurrency:
 
 env:
   FRONTEND_API_ORIGIN: ${{ vars.REACT_APP_API_ORIGIN || 'http://localhost:5000' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -46,11 +47,6 @@ jobs:
           PUBLIC_URL: /AI_QUEUE_APP
           REACT_APP_API_ORIGIN: ${{ env.FRONTEND_API_ORIGIN }}
         run: npm run build
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
