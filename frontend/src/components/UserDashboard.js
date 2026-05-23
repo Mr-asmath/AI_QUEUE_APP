@@ -11,6 +11,7 @@ function UserDashboard({ user, onLogout }) {
   const [queueStatus, setQueueStatus] = useState(null);
   const [activeTab, setActiveTab] = useState('new');
   const [message, setMessage] = useState('');
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const api = useCallback(async (path, options = {}) => {
     const response = await fetch(apiPath(path), {
@@ -18,8 +19,12 @@ function UserDashboard({ user, onLogout }) {
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
       ...options
     });
-    if (response.status === 401) onLogout();
-    return response.json();
+    const data = await response.json();
+    if (response.status === 401) {
+      setSessionExpired(true);
+      return { success: false, error: data.error || 'Session expired. Please sign in again.' };
+    }
+    return data;
   }, [onLogout]);
 
   const refresh = useCallback(async () => {
@@ -93,6 +98,12 @@ function UserDashboard({ user, onLogout }) {
       </div>
 
       {message && <div className="success-message">{message}</div>}
+      {sessionExpired && (
+        <div className="error-message">
+          Session expired or backend is not connected. Please sign in again.
+          <button className="link-button" onClick={onLogout}>Back to login</button>
+        </div>
+      )}
 
       <div className="dashboard-tabs">
         <button className={activeTab === 'new' ? 'active' : ''} onClick={() => setActiveTab('new')}>Generate Token</button>

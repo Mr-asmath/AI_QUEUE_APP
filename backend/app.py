@@ -23,15 +23,25 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///multi_industry_queue.db"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
-CORS(app, supports_credentials=True)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+CORS_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        f"{FRONTEND_URL},http://localhost:3000,http://127.0.0.1:3000,https://mr-asmath.github.io",
+    ).split(",")
+    if origin.strip()
+]
+
+CORS(app, supports_credentials=True, origins=CORS_ORIGINS)
 db = SQLAlchemy(app)
 
 TOKEN_TTL_MINUTES = int(os.getenv("TOKEN_TTL_MINUTES", "60"))
 REMINDER_WINDOW_MINUTES = int(os.getenv("REMINDER_WINDOW_MINUTES", "10"))
 AUTOMATION_API_KEY = os.getenv("AUTOMATION_API_KEY", "local-automation-key")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 MAIL_SENDER = os.getenv("MAIL_SENDER", "python.asmath1290@gmail.com")
 
 ACTIVE_TOKEN_STATUSES = ("requested", "verified", "customer_in", "allocated")

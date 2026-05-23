@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ai-queue-app-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///multi_industry_queue.db
+      - key: TOKEN_TTL_MINUTES
+        value: "60"
+      - key: REMINDER_WINDOW_MINUTES
+        value: "10"
+      - key: AUTOMATION_API_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://mr-asmath.github.io/AI_QUEUE_APP
+      - key: CORS_ORIGINS
+        value: https://mr-asmath.github.io
+      - key: SESSION_COOKIE_SAMESITE
+        value: None
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
