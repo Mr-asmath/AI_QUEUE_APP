@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
 import { getAvatarPreset, getLogoPreset, initialsFor, presetStyle } from '../visualPresets';
+import { roleLabelsFor } from '../roleLabels';
 
 function Navbar({ user, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const roleLabel = {
-    main_admin: 'Main Admin',
-    industry_admin: 'Industry Admin',
-    queue_operator: 'Queue Operator',
-    service_provider: 'Service Provider',
-    doctor: 'Service Provider',
-    user: 'User'
-  }[user.role] || user.role;
+  const roleLabel = roleLabelsFor(user.industry_type)[user.role] || user.role;
   const avatarPreset = getAvatarPreset(user.avatar_preset);
   const logoPreset = getLogoPreset(user.industry_logo_preset);
 

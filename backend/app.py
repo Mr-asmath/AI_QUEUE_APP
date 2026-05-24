@@ -3,6 +3,8 @@ import os
 import secrets
 import smtplib
 import string
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from functools import wraps
@@ -46,7 +48,8 @@ AUTOMATION_API_KEY = os.getenv("AUTOMATION_API_KEY", "local-automation-key")
 MAIL_SENDER = os.getenv("MAIL_SENDER", "python.asmath1290@gmail.com")
 
 ACTIVE_TOKEN_STATUSES = ("requested", "verified", "customer_in", "allocated")
-INDUSTRY_TYPES = ("hospital", "school", "bank", "hotel", "other")
+OPERATOR_VISIBLE_TOKEN_STATUSES = ACTIVE_TOKEN_STATUSES + ("cancelled",)
+INDUSTRY_TYPES = ("hospital", "school", "bank", "hotel", "office", "government", "other")
 
 
 class User(db.Model):
@@ -60,6 +63,10 @@ class User(db.Model):
     role = db.Column(db.String(30), default="user", nullable=False)
     phone = db.Column(db.String(40))
     address = db.Column(db.Text)
+    area = db.Column(db.String(160))
+    city = db.Column(db.String(120))
+    state = db.Column(db.String(120))
+    pincode = db.Column(db.String(20))
     designation = db.Column(db.String(120))
     emergency_contact = db.Column(db.String(80))
     personal_details = db.Column(db.Text)
@@ -68,6 +75,7 @@ class User(db.Model):
     must_reset_password = db.Column(db.Boolean, default=False)
     avatar_url = db.Column(db.Text)
     avatar_preset = db.Column(db.String(40), default="face-1")
+    last_seen_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     industry = db.relationship("Industry", foreign_keys=[industry_id])
@@ -158,6 +166,13 @@ class Branch(db.Model):
     details = db.Column(db.Text)
     branch_type = db.Column(db.String(40), nullable=False)
     other_type_name = db.Column(db.String(120))
+    address = db.Column(db.Text)
+    area = db.Column(db.String(160))
+    city = db.Column(db.String(120))
+    state = db.Column(db.String(120))
+    pincode = db.Column(db.String(20))
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
     dashboard_config_json = db.Column(db.Text, default="{}")
     user_schema_json = db.Column(db.Text, default="[]")
     last_token_number = db.Column(db.Integer, default=0)
@@ -180,6 +195,8 @@ class Token(db.Model):
     provider_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     status = db.Column(db.String(30), default="requested")
     details_json = db.Column(db.Text, default="{}")
+    display_name = db.Column(db.String(160))
+    name_mode = db.Column(db.String(30), default="default")
     duplicate_key = db.Column(db.String(255), index=True)
     ai_suggestion = db.Column(db.Text)
     expires_at = db.Column(db.DateTime, nullable=False)
@@ -327,6 +344,15 @@ def create_notification(user_id, message, notification_type, token_id=None):
     )
 
 
+@app.before_request
+def touch_current_user():
+    if "user_id" in session:
+        user = db.session.get(User, session["user_id"])
+        if user:
+            user.last_seen_at = datetime.utcnow()
+            db.session.commit()
+
+
 def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -357,8 +383,17 @@ def current_user():
     return db.session.get(User, session["user_id"])
 
 
+def is_online(user):
+    return bool(user.last_seen_at and user.last_seen_at >= datetime.utcnow() - timedelta(minutes=10))
+
+
 def branch_config(branch):
-    return as_json(branch.dashboard_config_json, {})
+    config = as_json(branch.dashboard_config_json, {})
+    config.setdefault("industry_settings", {})
+    config["industry_settings"].setdefault("token_name_mode", "default")
+    config["industry_settings"].setdefault("customer_name_slots", 3)
+    config["industry_settings"].setdefault("role_labels", {})
+    return config
 
 
 def user_schema(branch):
@@ -374,11 +409,16 @@ def serialize_user(user):
         "role": user.role,
         "phone": user.phone,
         "address": user.address,
+        "area": user.area,
+        "city": user.city,
+        "state": user.state,
+        "pincode": user.pincode,
         "designation": user.designation,
         "emergency_contact": user.emergency_contact,
         "personal_details": user.personal_details,
         "industry_id": user.industry_id,
         "industry_name": user.industry.name if user.industry else None,
+        "industry_type": user.industry.industry_type if user.industry else None,
         "branch_id": user.branch_id,
         "branch_name": user.branch.name if user.branch else None,
         "avatar_url": user.avatar_url,
@@ -386,6 +426,8 @@ def serialize_user(user):
         "industry_logo_url": user.industry.logo_url if user.industry else None,
         "industry_logo_preset": user.industry.logo_preset if user.industry else "logo-1",
         "must_reset_password": user.must_reset_password,
+        "last_seen_at": user.last_seen_at.isoformat() + "Z" if user.last_seen_at else None,
+        "is_online": is_online(user),
     }
 
 
@@ -398,6 +440,13 @@ def serialize_branch(branch):
         "details": branch.details,
         "branch_type": branch.branch_type,
         "other_type_name": branch.other_type_name,
+        "address": branch.address,
+        "area": branch.area,
+        "city": branch.city,
+        "state": branch.state,
+        "pincode": branch.pincode,
+        "latitude": branch.latitude,
+        "longitude": branch.longitude,
         "logo_url": branch.industry.logo_url,
         "logo_preset": branch.industry.logo_preset or "logo-1",
         "dashboard_config": branch_config(branch),
@@ -435,10 +484,16 @@ def serialize_admin_user_directory_entry(user):
             "must_reset_password": user.must_reset_password,
             "token_count": token_count,
             "active_token_count": active_token_count,
+            "is_online": is_online(user),
+            "last_seen_at": user.last_seen_at.isoformat() + "Z" if user.last_seen_at else None,
         },
         "details": {
             "phone": user.phone,
             "address": user.address,
+            "area": user.area,
+            "city": user.city,
+            "state": user.state,
+            "pincode": user.pincode,
             "emergency_contact": user.emergency_contact,
             "personal_details": user.personal_details,
             "created_at": user.created_at.isoformat() + "Z" if user.created_at else None,
@@ -456,6 +511,8 @@ def serialize_token(token):
         "user_id": token.user_id,
         "user_code": token.user.user_code,
         "user_name": token.user.name,
+        "display_name": token.display_name or token.user.name,
+        "name_mode": token.name_mode or "default",
         "user_email": token.user.email,
         "industry_id": token.industry_id,
         "industry_name": token.industry.name,
@@ -541,9 +598,78 @@ def require_same_industry(user, industry_id):
     return user.role == "main_admin" or user.industry_id == industry_id
 
 
+def nominatim_lookup(params):
+    query = urllib.parse.urlencode(params)
+    request_url = f"https://nominatim.openstreetmap.org/search?{query}&format=json&addressdetails=1&limit=1"
+    request_obj = urllib.request.Request(
+        request_url,
+        headers={"User-Agent": "AIQueueApp/1.0 contact:admin@queue.local"},
+    )
+    with urllib.request.urlopen(request_obj, timeout=12) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def normalize_nominatim_address(item):
+    address = item.get("address") or {}
+    area = (
+        address.get("suburb")
+        or address.get("neighbourhood")
+        or address.get("quarter")
+        or address.get("city_district")
+        or address.get("county")
+        or address.get("state_district")
+        or ""
+    )
+    city = (
+        address.get("city")
+        or address.get("town")
+        or address.get("village")
+        or address.get("municipality")
+        or address.get("state_district")
+        or address.get("county")
+        or ""
+    )
+    state = address.get("state") or address.get("region") or ""
+    pincode = address.get("postcode") or ""
+    return {
+        "display_name": item.get("display_name"),
+        "address": item.get("display_name"),
+        "area": area,
+        "city": city,
+        "state": state,
+        "pincode": pincode,
+        "latitude": float(item["lat"]) if item.get("lat") else None,
+        "longitude": float(item["lon"]) if item.get("lon") else None,
+    }
+
+
 @app.route("/health")
 def health():
     return jsonify({"success": True, "service": "ai-queue-backend"}), 200
+
+
+@app.route("/api/maps/geocode")
+@login_required
+def geocode_address():
+    address = (request.args.get("address") or "").strip()
+    area = (request.args.get("area") or "").strip()
+    pincode = (request.args.get("pincode") or "").strip()
+    city = (request.args.get("city") or "").strip()
+    state = (request.args.get("state") or "").strip()
+    if not any((address, area, pincode, city, state)):
+        return jsonify({"success": False, "error": "Area, city, state, or pincode is required"}), 400
+    try:
+        results = []
+        if pincode:
+            results = nominatim_lookup({"postalcode": pincode, "country": "India"})
+        if not results:
+            query_text = ", ".join(part for part in (address, area, city, state, pincode, "India") if part)
+            results = nominatim_lookup({"q": query_text})
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Map lookup failed: {exc}"}), 502
+    if not results:
+        return jsonify({"success": False, "error": "No location result found"}), 404
+    return jsonify({"success": True, "location": normalize_nominatim_address(results[0])}), 200
 
 
 @app.route("/api/auth/register", methods=["POST"])
@@ -718,6 +844,10 @@ def update_profile():
     user.name = name
     user.phone = phone
     user.address = (data.get("address") or "").strip() or None
+    user.area = (data.get("area") or "").strip() or None
+    user.city = (data.get("city") or "").strip() or None
+    user.state = (data.get("state") or "").strip() or None
+    user.pincode = (data.get("pincode") or "").strip() or None
     user.designation = (data.get("designation") or "").strip() or None
     user.emergency_contact = (data.get("emergency_contact") or "").strip() or None
     user.personal_details = (data.get("personal_details") or "").strip() or None
@@ -864,11 +994,19 @@ def list_access_requests():
 
 @app.route("/api/admin/users/directory")
 @login_required
-@role_required("main_admin")
+@role_required("main_admin", "industry_admin")
 def admin_user_directory():
-    users = User.query.order_by(User.role.asc(), User.created_at.desc()).all()
-    industries = Industry.query.order_by(Industry.name.asc()).all()
-    branches = Branch.query.order_by(Branch.name.asc()).all()
+    user = current_user()
+    query = User.query
+    industries_query = Industry.query
+    branches_query = Branch.query
+    if user.role == "industry_admin":
+        query = query.filter((User.industry_id == user.industry_id) | (User.id == user.id))
+        industries_query = industries_query.filter_by(id=user.industry_id)
+        branches_query = branches_query.filter_by(industry_id=user.industry_id)
+    users = query.order_by(User.role.asc(), User.created_at.desc()).all()
+    industries = industries_query.order_by(Industry.name.asc()).all()
+    branches = branches_query.order_by(Branch.name.asc()).all()
     roles = ("main_admin", "industry_admin", "queue_operator", "service_provider", "user")
     grouped = {role: [] for role in roles}
     for item in users:
@@ -919,6 +1057,10 @@ def industry_user_search():
             item.name,
             item.email,
             item.phone,
+            item.area,
+            item.city,
+            item.state,
+            item.pincode,
             item.branch.name if item.branch else "",
         ]
         if any(query_text in str(value or "").lower() for value in values):
@@ -1030,12 +1172,59 @@ def industry_branches():
         details=data.get("details"),
         branch_type=data["branch_type"],
         other_type_name=data.get("other_type_name"),
+        address=(data.get("address") or "").strip() or None,
+        area=(data.get("area") or "").strip() or None,
+        city=(data.get("city") or "").strip() or None,
+        state=(data.get("state") or "").strip() or None,
+        pincode=(data.get("pincode") or "").strip() or None,
+        latitude=float(data["latitude"]) if data.get("latitude") not in (None, "") else None,
+        longitude=float(data["longitude"]) if data.get("longitude") not in (None, "") else None,
         dashboard_config_json=dumps(data.get("dashboard_config") or {}),
         user_schema_json=dumps(data.get("user_schema") or []),
     )
     db.session.add(branch)
     db.session.commit()
     return jsonify({"success": True, "branch": serialize_branch(branch)}), 201
+
+
+@app.route("/api/industry/settings", methods=["GET", "PUT"])
+@login_required
+@role_required("industry_admin")
+def industry_settings():
+    user = current_user()
+    branches = Branch.query.filter_by(industry_id=user.industry_id).order_by(Branch.name.asc()).all()
+    if request.method == "GET":
+        return jsonify({"success": True, "branches": [serialize_branch(branch) for branch in branches]}), 200
+
+    data = request.get_json() or {}
+    settings = data.get("industry_settings") or {}
+    allowed = {
+        "token_name_mode": settings.get("token_name_mode"),
+        "customer_name_slots": int(settings.get("customer_name_slots") or 3),
+        "role_labels": settings.get("role_labels") or {},
+    }
+    allowed["token_name_mode"] = "customer" if allowed["token_name_mode"] == "customer" else "default"
+    allowed["customer_name_slots"] = min(3, max(1, allowed["customer_name_slots"]))
+    allowed["role_labels"] = {
+        role: str(label or "").strip()
+        for role, label in allowed["role_labels"].items()
+        if role in ("industry_admin", "queue_operator", "service_provider") and str(label or "").strip()
+    }
+
+    branch_id = data.get("branch_id")
+    target_branches = branches
+    if branch_id:
+        target = db.session.get(Branch, int(branch_id))
+        if not target or target.industry_id != user.industry_id:
+            return jsonify({"success": False, "error": "Branch not found"}), 404
+        target_branches = [target]
+
+    for branch in target_branches:
+        config = branch_config(branch)
+        config["industry_settings"] = {**config.get("industry_settings", {}), **allowed}
+        branch.dashboard_config_json = dumps(config)
+    db.session.commit()
+    return jsonify({"success": True, "branches": [serialize_branch(branch) for branch in branches]}), 200
 
 
 @app.route("/api/industry/staff", methods=["GET", "POST"])
@@ -1082,6 +1271,10 @@ def industry_staff():
         user_code=generate_user_code(),
         phone=data.get("phone"),
         address=(data.get("address") or "").strip() or None,
+        area=(data.get("area") or "").strip() or None,
+        city=(data.get("city") or "").strip() or None,
+        state=(data.get("state") or "").strip() or None,
+        pincode=(data.get("pincode") or "").strip() or None,
         designation=(data.get("designation") or "").strip() or None,
         emergency_contact=(data.get("emergency_contact") or "").strip() or None,
         personal_details=(data.get("personal_details") or "").strip() or None,
@@ -1108,6 +1301,18 @@ def generate_token():
         return jsonify({"success": False, "error": "Please select a valid place"}), 400
 
     details = data.get("details") or {}
+    name_mode = (data.get("name_mode") or branch_config(branch).get("industry_settings", {}).get("token_name_mode") or "default").strip()
+    customer_names = [
+        str(name or "").strip()
+        for name in (data.get("customer_names") or [])
+        if str(name or "").strip()
+    ][:3]
+    display_name = user.name
+    if name_mode == "customer" and customer_names:
+        display_name = ", ".join(customer_names)
+        details = {**details, "customer_names": customer_names}
+    else:
+        name_mode = "default"
     duplicate_key = f"{user.id}:{branch.industry_id}:{branch.id}:{normalize_details(details)}"
     existing = Token.query.filter(
         Token.user_id == user.id,
@@ -1141,14 +1346,18 @@ def generate_token():
         user=user,
         industry=branch.industry,
         branch=branch,
+        status="verified",
         details_json=dumps(details),
+        display_name=display_name,
+        name_mode=name_mode,
         duplicate_key=duplicate_key,
+        verified_at=datetime.utcnow(),
         expires_at=datetime.utcnow() + timedelta(minutes=TOKEN_TTL_MINUTES),
     )
     db.session.add(token)
 
     for operator in User.query.filter_by(role="queue_operator", branch_id=branch.id).all():
-        create_notification(operator.id, f"New token {token_code} needs verification", "token_requested")
+        create_notification(operator.id, f"New token {token_code} is verified automatically and ready for customer entry.", "token_requested")
     create_notification(
         user.id,
         f"Token {token_code} generated for {branch.industry.name} / {branch.name}.",
@@ -1219,7 +1428,7 @@ def operator_queue():
         query = query.filter(Token.industry_id == user.industry_id)
         providers_query = providers_query.filter_by(industry_id=user.industry_id)
     tokens = (
-        query.filter(Token.status.in_(ACTIVE_TOKEN_STATUSES))
+        query.filter(Token.status.in_(OPERATOR_VISIBLE_TOKEN_STATUSES))
         .order_by(Token.created_at.asc())
         .all()
     )
@@ -1306,12 +1515,16 @@ def operator_token_action(token_id):
         token.verified_at = datetime.utcnow()
         create_notification(token.user_id, f"{token.token_code} verified. Please be ready.", "token_verified", token.id)
     elif action == "customer_in":
+        if token.status not in ("requested", "verified"):
+            return jsonify({"success": False, "error": "Customer entry is only allowed before allocation"}), 400
         token.status = "customer_in"
         token.operator_id = user.id
         token.customer_in_at = datetime.utcnow()
         token.branch.current_token_number = max(token.branch.current_token_number, token.token_number)
         create_notification(token.user_id, f"{token.token_code} customer entry confirmed.", "customer_in", token.id)
     elif action == "allocate":
+        if token.status != "customer_in":
+            return jsonify({"success": False, "error": "Mark customer in before allocating a provider"}), 400
         provider = db.session.get(User, int(data.get("provider_id") or 0))
         if not provider or provider.role != "service_provider" or provider.industry_id != token.industry_id:
             return jsonify({"success": False, "error": "Valid service provider is required"}), 400
@@ -1323,6 +1536,12 @@ def operator_token_action(token_id):
         token.status = "rejected"
         token.completed_at = datetime.utcnow()
         create_notification(token.user_id, f"{token.token_code} was rejected by queue control.", "token_rejected", token.id)
+    elif action == "cancel":
+        token.status = "cancelled"
+        token.completed_at = datetime.utcnow()
+        create_notification(token.user_id, f"{token.token_code} is cancelled.", "token_cancelled", token.id)
+        if token.provider_id:
+            create_notification(token.provider_id, f"{token.token_code} is cancelled.", "token_cancelled", token.id)
     else:
         return jsonify({"success": False, "error": "Unknown token action"}), 400
 
@@ -1413,6 +1632,27 @@ def my_tokens():
     user = current_user()
     tokens = Token.query.filter_by(user_id=user.id).order_by(Token.created_at.desc()).limit(30).all()
     return jsonify({"success": True, "tokens": [serialize_token(token) for token in tokens]}), 200
+
+
+@app.route("/api/user/tokens/<int:token_id>/cancel", methods=["POST"])
+@login_required
+def cancel_my_token(token_id):
+    user = current_user()
+    token = db.session.get(Token, token_id)
+    if not token or token.user_id != user.id:
+        return jsonify({"success": False, "error": "Token not found"}), 404
+    if token.status not in ACTIVE_TOKEN_STATUSES:
+        return jsonify({"success": False, "error": f"Token is already {token.status}"}), 400
+
+    token.status = "cancelled"
+    token.completed_at = datetime.utcnow()
+    create_notification(user.id, f"{token.token_code} is cancelled.", "token_cancelled", token.id)
+    for operator in User.query.filter_by(role="queue_operator", branch_id=token.branch_id).all():
+        create_notification(operator.id, f"{token.token_code} is cancelled by the customer.", "token_cancelled", token.id)
+    if token.provider_id:
+        create_notification(token.provider_id, f"{token.token_code} is cancelled by the customer.", "token_cancelled", token.id)
+    db.session.commit()
+    return jsonify({"success": True, "token": serialize_token(token)}), 200
 
 
 @app.route("/api/user/my-suggestions")
@@ -1595,6 +1835,13 @@ def seed_data():
         name="Main Branch",
         details="General queue branch",
         branch_type="hospital",
+        address="Chennai, Tamil Nadu, India",
+        area="Chennai",
+        city="Chennai",
+        state="Tamil Nadu",
+        pincode="600001",
+        latitude=13.0827,
+        longitude=80.2707,
         dashboard_config_json=dumps(config),
         user_schema_json=dumps(schema),
     )
@@ -1644,16 +1891,46 @@ def ensure_schema_updates():
         statements.append("ALTER TABLE users ADD COLUMN avatar_preset VARCHAR(40) DEFAULT 'face-1'")
     if "address" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN address TEXT")
+    if "area" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN area VARCHAR(160)")
+    if "city" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN city VARCHAR(120)")
+    if "state" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN state VARCHAR(120)")
+    if "pincode" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN pincode VARCHAR(20)")
     if "designation" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN designation VARCHAR(120)")
     if "emergency_contact" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN emergency_contact VARCHAR(80)")
     if "personal_details" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN personal_details TEXT")
+    if "last_seen_at" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN last_seen_at DATETIME")
+    token_columns = {column["name"] for column in inspector.get_columns("tokens")} if inspector.has_table("tokens") else set()
+    if "display_name" not in token_columns:
+        statements.append("ALTER TABLE tokens ADD COLUMN display_name VARCHAR(160)")
+    if "name_mode" not in token_columns:
+        statements.append("ALTER TABLE tokens ADD COLUMN name_mode VARCHAR(30) DEFAULT 'default'")
     if "logo_url" not in industry_columns:
         statements.append("ALTER TABLE industries ADD COLUMN logo_url TEXT")
     if "logo_preset" not in industry_columns:
         statements.append("ALTER TABLE industries ADD COLUMN logo_preset VARCHAR(40) DEFAULT 'logo-1'")
+    branch_columns = {column["name"] for column in inspector.get_columns("branches")} if inspector.has_table("branches") else set()
+    if "address" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN address TEXT")
+    if "area" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN area VARCHAR(160)")
+    if "city" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN city VARCHAR(120)")
+    if "state" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN state VARCHAR(120)")
+    if "pincode" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN pincode VARCHAR(20)")
+    if "latitude" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN latitude FLOAT")
+    if "longitude" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN longitude FLOAT")
 
     if engine_name == "sqlite":
         with db.engine.begin() as connection:

@@ -124,6 +124,8 @@ function Register({ onRegister, onSwitchToLogin }) {
                 <option value="school">School</option>
                 <option value="bank">Bank</option>
                 <option value="hotel">Hotel</option>
+                <option value="office">Office / Company</option>
+                <option value="government">Government Office</option>
                 <option value="other">Other</option>
               </select>
             </div>

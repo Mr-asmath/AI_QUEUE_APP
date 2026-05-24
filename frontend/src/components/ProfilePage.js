@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
+import { roleLabelOptions, roleLabelsFor } from '../roleLabels';
 
 function ProfilePage({ user, onUserUpdate, onLogout }) {
   const [activeSection, setActiveSection] = useState('account');
@@ -7,6 +8,10 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
     name: user.name || '',
     phone: user.phone || '',
     address: user.address || '',
+    area: user.area || '',
+    city: user.city || '',
+    state: user.state || '',
+    pincode: user.pincode || '',
     designation: user.designation || '',
     emergency_contact: user.emergency_contact || '',
     personal_details: user.personal_details || '',
@@ -21,14 +26,100 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [settingsBranches, setSettingsBranches] = useState([]);
+  const currentRoleOptions = roleLabelOptions(user.industry_type);
+  const roleLabels = roleLabelsFor(user.industry_type);
+  const [settingsForm, setSettingsForm] = useState({
+    branch_id: '',
+    token_name_mode: 'default',
+    customer_name_slots: 3,
+    role_labels: {
+      industry_admin: currentRoleOptions.industry_admin[0],
+      queue_operator: currentRoleOptions.queue_operator[0],
+      service_provider: currentRoleOptions.service_provider[0]
+    }
+  });
 
-  const api = async (path, options = {}) => {
+  const api = useCallback(async (path, options = {}) => {
     const response = await fetch(apiPath(path), {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
       ...options
     });
     return response.json();
+  }, []);
+
+  const fillProfileLocationFromPincode = async (nextForm) => {
+    const pincode = String(nextForm.pincode || '').trim();
+    if (pincode.length !== 6) return;
+    setMessage('');
+    setError('');
+    const params = new URLSearchParams({ pincode });
+    const data = await api(`/api/maps/geocode?${params.toString()}`);
+    if (data.success) {
+      setProfileForm((current) => ({
+        ...current,
+        address: data.location.address || current.address,
+        area: data.location.area || current.area,
+        city: data.location.city || current.city,
+        state: data.location.state || current.state,
+        pincode: data.location.pincode || current.pincode
+      }));
+      setMessage('Location filled from pincode.');
+    } else {
+      setError(data.error || 'Pincode lookup failed.');
+    }
+  };
+
+  const updateProfilePincode = (value) => {
+    const next = { ...profileForm, pincode: value };
+    setProfileForm(next);
+    if (value.trim().length === 6) fillProfileLocationFromPincode(next);
+  };
+
+  const loadIndustrySettings = useCallback(async () => {
+    if (user.role !== 'industry_admin') return;
+    const data = await api('/api/industry/settings');
+    if (data.success) {
+      setSettingsBranches(data.branches || []);
+      const firstSettings = data.branches?.[0]?.dashboard_config?.industry_settings || {};
+      setSettingsForm((current) => ({
+        ...current,
+        token_name_mode: firstSettings.token_name_mode || current.token_name_mode,
+        customer_name_slots: firstSettings.customer_name_slots || current.customer_name_slots,
+        role_labels: {
+          ...current.role_labels,
+          ...(firstSettings.role_labels || {})
+        }
+      }));
+    }
+  }, [api, user.role]);
+
+  useEffect(() => {
+    loadIndustrySettings();
+  }, [loadIndustrySettings]);
+
+  const saveIndustrySettings = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    setError('');
+    const data = await api('/api/industry/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        branch_id: settingsForm.branch_id || null,
+        industry_settings: {
+          token_name_mode: settingsForm.token_name_mode,
+          customer_name_slots: settingsForm.customer_name_slots,
+          role_labels: settingsForm.role_labels
+        }
+      })
+    });
+    if (data.success) {
+      setSettingsBranches(data.branches || []);
+      setMessage('Industry settings updated.');
+    } else {
+      setError(data.error || 'Industry settings update failed.');
+    }
   };
 
   const saveProfile = async (event) => {
@@ -91,6 +182,7 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
   const profileSections = [
     { id: 'account', label: 'Account Details' },
     ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'logo', label: 'App Logo' }] : []),
+    ...(user.role === 'industry_admin' ? [{ id: 'industry-settings', label: 'Industry Settings' }] : []),
     { id: 'password', label: 'Change Password' },
     { id: 'session', label: 'Account Session' }
   ];
@@ -152,8 +244,22 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
             <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} />
           </div>
           <div className="form-group">
-            <label>Address</label>
-            <textarea value={profileForm.address} onChange={(event) => setProfileForm({ ...profileForm, address: event.target.value })} />
+            <label>Area</label>
+            <input value={profileForm.area} onChange={(event) => setProfileForm({ ...profileForm, area: event.target.value })} />
+          </div>
+          <div className="inline-row field-row">
+            <div className="form-group">
+              <label>City</label>
+              <input value={profileForm.city} onChange={(event) => setProfileForm({ ...profileForm, city: event.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>State</label>
+              <input value={profileForm.state} onChange={(event) => setProfileForm({ ...profileForm, state: event.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Pincode</label>
+              <input value={profileForm.pincode} onChange={(event) => updateProfilePincode(event.target.value)} />
+            </div>
           </div>
           <div className="form-group">
             <label>Designation</label>
@@ -202,6 +308,98 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
               />
             </div>
             <button type="submit">Save Logo</button>
+          </form>
+        )}
+
+        {activeSection === 'industry-settings' && user.role === 'industry_admin' && (
+          <form className="control-panel" onSubmit={saveIndustrySettings}>
+            <h3>Industry Settings</h3>
+            <div className="form-group">
+              <label>Apply to</label>
+              <select
+                value={settingsForm.branch_id}
+                onChange={(event) => setSettingsForm({ ...settingsForm, branch_id: event.target.value })}
+              >
+                <option value="">All branches</option>
+                {settingsBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+              </select>
+            </div>
+
+            <div className="checkbox-section">
+              <h4>Token name mode</h4>
+              <div className="radio-group">
+                <label>
+                  <input
+                    type="radio"
+                    checked={settingsForm.token_name_mode === 'default'}
+                    onChange={() => setSettingsForm({ ...settingsForm, token_name_mode: 'default' })}
+                  />
+                  Default name
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    checked={settingsForm.token_name_mode === 'customer'}
+                    onChange={() => setSettingsForm({ ...settingsForm, token_name_mode: 'customer' })}
+                  />
+                  Customer name
+                </label>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Customer name inputs</label>
+              <select
+                value={settingsForm.customer_name_slots}
+                onChange={(event) => setSettingsForm({ ...settingsForm, customer_name_slots: Number(event.target.value) })}
+              >
+                <option value={1}>1 customer</option>
+                <option value={2}>2 customers</option>
+                <option value={3}>3 customers</option>
+              </select>
+            </div>
+
+            <div className="checkbox-section">
+              <h4>Display names for this industry</h4>
+              <div className="form-group">
+                <label>{roleLabels.industry_admin} role name</label>
+                <select
+                  value={settingsForm.role_labels.industry_admin}
+                  onChange={(event) => setSettingsForm({
+                    ...settingsForm,
+                    role_labels: { ...settingsForm.role_labels, industry_admin: event.target.value }
+                  })}
+                >
+                  {currentRoleOptions.industry_admin.map((label) => <option key={label} value={label}>{label}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>{roleLabels.queue_operator} role name</label>
+                <select
+                  value={settingsForm.role_labels.queue_operator}
+                  onChange={(event) => setSettingsForm({
+                    ...settingsForm,
+                    role_labels: { ...settingsForm.role_labels, queue_operator: event.target.value }
+                  })}
+                >
+                  {currentRoleOptions.queue_operator.map((label) => <option key={label} value={label}>{label}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>{roleLabels.service_provider} role name</label>
+                <select
+                  value={settingsForm.role_labels.service_provider}
+                  onChange={(event) => setSettingsForm({
+                    ...settingsForm,
+                    role_labels: { ...settingsForm.role_labels, service_provider: event.target.value }
+                  })}
+                >
+                  {currentRoleOptions.service_provider.map((label) => <option key={label} value={label}>{label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <button type="submit">Save Industry Settings</button>
           </form>
         )}
 

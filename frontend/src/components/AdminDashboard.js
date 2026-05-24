@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getLogoPreset, presetStyle } from '../visualPresets';
 import { apiPath } from '../config';
+import { roleLabelsFor } from '../roleLabels';
 
 const branchTypes = [
   { value: 'hospital', label: 'Hospital' },
-  { value: 'school', label: 'School' },
+  { value: 'school', label: 'School / College' },
   { value: 'hotel', label: 'Hotel' },
   { value: 'bank', label: 'Bank' },
+  { value: 'office', label: 'Office / Company' },
+  { value: 'government', label: 'Government Office' },
   { value: 'other', label: 'Other' }
 ];
 
@@ -19,28 +22,18 @@ const aggregationOptions = [
   { value: 'max', label: 'Highest amount', description: 'Shows the largest selected item price.' }
 ];
 
-const userTypeTabs = [
-  { id: 'all', label: 'All Users' },
-  { id: 'main_admin', label: 'Main Admins' },
-  { id: 'industry_admin', label: 'Industry Admins' },
-  { id: 'queue_operator', label: 'Queue Managers' },
-  { id: 'service_provider', label: 'Queue Controllers' },
-  { id: 'user', label: 'Users' }
-];
-
-const roleLabels = {
-  main_admin: 'Main Admin',
-  industry_admin: 'Industry Admin',
-  queue_operator: 'Queue Manager',
-  service_provider: 'Queue Controller',
-  user: 'User'
-};
-
 const emptyBranch = {
   name: '',
   details: '',
   branch_type: 'hospital',
   other_type_name: '',
+  address: '',
+  area: '',
+  city: '',
+  state: '',
+  pincode: '',
+  latitude: '',
+  longitude: '',
   dashboard_config: {
     service_provider: {
       display_user_details: true,
@@ -76,6 +69,10 @@ const emptyBranch = {
       display_transactions: true,
       display_operator_contact: true,
       display_provider_contact: true
+    },
+    industry_settings: {
+      token_name_mode: 'default',
+      customer_name_slots: 3
     }
   },
   user_schema: [
@@ -100,6 +97,7 @@ function AdminDashboard({ user, onHome }) {
   const [providers, setProviders] = useState([]);
   const [historyFilters, setHistoryFilters] = useState({ q: '', date_from: '', date_to: '' });
   const [branchForm, setBranchForm] = useState(emptyBranch);
+  const [roleLabelConfig, setRoleLabelConfig] = useState({});
   const [staffForm, setStaffForm] = useState({
     name: '',
     email: '',
@@ -107,11 +105,49 @@ function AdminDashboard({ user, onHome }) {
     role: 'queue_operator',
     branch_id: '',
     address: '',
+    area: '',
+    city: '',
+    state: '',
+    pincode: '',
     designation: '',
     emergency_contact: '',
     personal_details: ''
   });
   const [message, setMessage] = useState('');
+  const roleLabels = roleLabelsFor(user.industry_type, roleLabelConfig);
+  const formatAddressParts = (item = {}) => {
+    const parts = [item.area, item.city, item.state, item.pincode].filter(Boolean);
+    return parts.length ? parts.join(', ') : item.address;
+  };
+  const fillLocationFromPincode = async (form, setForm, label = 'Location') => {
+    const pincode = String(form.pincode || '').trim();
+    if (pincode.length !== 6) return;
+    const params = new URLSearchParams({ pincode });
+    const data = await api(`/api/maps/geocode?${params.toString()}`);
+    if (data.success) {
+      setForm((current) => ({
+        ...current,
+        address: data.location.address || current.address,
+        area: data.location.area || current.area,
+        city: data.location.city || current.city,
+        state: data.location.state || current.state,
+        pincode: data.location.pincode || current.pincode,
+        ...(Object.prototype.hasOwnProperty.call(current, 'latitude') ? { latitude: data.location.latitude || current.latitude } : {}),
+        ...(Object.prototype.hasOwnProperty.call(current, 'longitude') ? { longitude: data.location.longitude || current.longitude } : {})
+      }));
+      setMessage(`${label} filled from pincode.`);
+    } else {
+      setMessage(data.error || 'Pincode lookup failed.');
+    }
+  };
+  const userTypeTabs = [
+    { id: 'all', label: 'All Users' },
+    { id: 'main_admin', label: 'Main Admins' },
+    { id: 'industry_admin', label: `${roleLabels.industry_admin}s` },
+    { id: 'queue_operator', label: roleLabels.queue_operator },
+    { id: 'service_provider', label: `${roleLabels.service_provider}s` },
+    { id: 'user', label: 'Users' }
+  ];
 
   const api = useCallback(async (path, options = {}) => {
     const response = await fetch(apiPath(path), {
@@ -126,6 +162,8 @@ function AdminDashboard({ user, onHome }) {
     if (user.role === 'main_admin') {
       const data = await api('/api/admin/access-requests');
       if (data.success) setRequests(data.requests);
+    }
+    if (['main_admin', 'industry_admin'].includes(user.role)) {
       const directoryData = await api('/api/admin/users/directory');
       if (directoryData.success) {
         setUserDirectory({
@@ -142,7 +180,10 @@ function AdminDashboard({ user, onHome }) {
     if (user.role === 'industry_admin') {
       const branchData = await api('/api/industry/branches');
       const staffData = await api('/api/industry/staff');
-      if (branchData.success) setBranches(branchData.branches);
+      if (branchData.success) {
+        setBranches(branchData.branches);
+        setRoleLabelConfig(branchData.branches?.[0]?.dashboard_config?.industry_settings?.role_labels || {});
+      }
       if (staffData.success) setStaff(staffData.staff);
     }
     if (['queue_operator', 'industry_admin', 'main_admin'].includes(user.role)) {
@@ -222,6 +263,10 @@ function AdminDashboard({ user, onHome }) {
         role: 'queue_operator',
         branch_id: '',
         address: '',
+        area: '',
+        city: '',
+        state: '',
+        pincode: '',
         designation: '',
         emergency_contact: '',
         personal_details: ''
@@ -229,6 +274,43 @@ function AdminDashboard({ user, onHome }) {
       setActiveTab('staff');
       refresh();
     }
+  };
+
+  const lookupBranchAddress = async () => {
+    const params = new URLSearchParams();
+    if (branchForm.address) params.set('address', branchForm.address);
+    if (branchForm.area) params.set('area', branchForm.area);
+    if (branchForm.city) params.set('city', branchForm.city);
+    if (branchForm.state) params.set('state', branchForm.state);
+    if (branchForm.pincode) params.set('pincode', branchForm.pincode);
+    const data = await api(`/api/maps/geocode?${params.toString()}`);
+    if (data.success) {
+      setBranchForm({
+        ...branchForm,
+        address: data.location.address || branchForm.address,
+        area: data.location.area || branchForm.area,
+        city: data.location.city || branchForm.city,
+        state: data.location.state || branchForm.state,
+        pincode: data.location.pincode || branchForm.pincode,
+        latitude: data.location.latitude || '',
+        longitude: data.location.longitude || ''
+      });
+      setMessage('Branch location filled.');
+    } else {
+      setMessage(data.error || 'Location lookup failed.');
+    }
+  };
+
+  const updateBranchPincode = (value) => {
+    const next = { ...branchForm, pincode: value };
+    setBranchForm(next);
+    if (value.trim().length === 6) fillLocationFromPincode(next, setBranchForm, 'Branch location');
+  };
+
+  const updateStaffPincode = (value) => {
+    const next = { ...staffForm, pincode: value };
+    setStaffForm(next);
+    if (value.trim().length === 6) fillLocationFromPincode(next, setStaffForm, 'Staff location');
   };
 
   const tokenAction = async (tokenId, action, providerId) => {
@@ -336,7 +418,7 @@ function AdminDashboard({ user, onHome }) {
   };
   const dashboardTabs = [
     ...(user.role === 'main_admin' ? [{ id: 'requests', label: 'Access Requests' }] : []),
-    ...(user.role === 'main_admin' ? [{ id: 'user-management', label: 'User Management' }] : []),
+    ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'user-management', label: 'User Management' }] : []),
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Reset Requests' }] : []),
     ...(user.role === 'industry_admin' ? [
       { id: 'branches', label: 'Branches' },
@@ -395,6 +477,10 @@ function AdminDashboard({ user, onHome }) {
         item.details?.phone,
         item.details?.emergency_contact,
         item.details?.address,
+        item.details?.area,
+        item.details?.city,
+        item.details?.state,
+        item.details?.pincode,
         item.details?.personal_details
       ].some((value) => String(value || '').toLowerCase().includes(normalizedUserSearch)))
     : visibleUsers;
@@ -404,7 +490,7 @@ function AdminDashboard({ user, onHome }) {
       <div className="dashboard-header">
         <div>
           <div className="title-with-home">
-            <h1>{user.role === 'main_admin' ? 'Application Admin' : user.role === 'industry_admin' ? 'Industry Admin' : 'Queue Operator'}</h1>
+            <h1>{user.role === 'main_admin' ? 'Application Admin' : roleLabels[user.role] || 'Token Desk Staff'}</h1>
             {user.role === 'industry_admin' && (
               <button className="title-home-logo" onClick={onHome} aria-label="Home">
                 {user.industry_logo_url ? (
@@ -567,7 +653,10 @@ function AdminDashboard({ user, onHome }) {
                     <p>{item.email}</p>
                     <code>User ID: {item.user_code || 'Pending'}</code>
                   </div>
-                  <span className="badge badge-info">{roleLabels[item.role] || item.role}</span>
+                  <span className="status-line">
+                    <span className={item.is_online ? 'presence-dot online' : 'presence-dot offline'}></span>
+                    <span className="badge badge-info">{roleLabels[item.role] || item.role}</span>
+                  </span>
                 </div>
 
                 <div className="user-detail-grid">
@@ -587,13 +676,14 @@ function AdminDashboard({ user, onHome }) {
                     <span>Work</span>
                     <strong>{item.work?.designation || roleLabels[item.role] || item.role}</strong>
                     <small>{item.work?.token_count || 0} tokens, {item.work?.active_token_count || 0} active</small>
+                    <small>{item.work?.is_online ? 'Online now' : 'Offline'}</small>
                     {item.work?.must_reset_password && <p>Password reset required</p>}
                   </section>
                   <section>
                     <span>Details</span>
                     <strong>{item.details?.phone || 'No phone'}</strong>
                     <small>{item.details?.emergency_contact || 'No emergency contact'}</small>
-                    {item.details?.address && <p>{item.details.address}</p>}
+                    {formatAddressParts(item.details) && <p>{formatAddressParts(item.details)}</p>}
                     {item.details?.personal_details && <p>{item.details.personal_details}</p>}
                   </section>
                 </div>
@@ -625,8 +715,23 @@ function AdminDashboard({ user, onHome }) {
               <input placeholder="Other type name" value={branchForm.other_type_name} onChange={(event) => setBranchForm({ ...branchForm, other_type_name: event.target.value })} required />
             )}
 
+            <div className="mini-builder">
+              <h4>Branch map location</h4>
+              <div className="inline-row field-row">
+                <input placeholder="Area" value={branchForm.area} onChange={(event) => setBranchForm({ ...branchForm, area: event.target.value })} />
+                <input placeholder="City" value={branchForm.city} onChange={(event) => setBranchForm({ ...branchForm, city: event.target.value })} />
+                <input placeholder="State" value={branchForm.state} onChange={(event) => setBranchForm({ ...branchForm, state: event.target.value })} />
+                <input placeholder="Pincode" value={branchForm.pincode} onChange={(event) => updateBranchPincode(event.target.value)} />
+                <button type="button" onClick={lookupBranchAddress}>Find Address</button>
+              </div>
+              <div className="inline-row">
+                <input placeholder="Latitude" value={branchForm.latitude} onChange={(event) => setBranchForm({ ...branchForm, latitude: event.target.value })} />
+                <input placeholder="Longitude" value={branchForm.longitude} onChange={(event) => setBranchForm({ ...branchForm, longitude: event.target.value })} />
+              </div>
+            </div>
+
             <div className="checkbox-section">
-              <h4>Service provider dashboard</h4>
+              <h4>{roleLabels.service_provider} dashboard</h4>
               {renderOptionList(
                 [
                   ['display_user_details', 'Display user details'],
@@ -689,11 +794,11 @@ function AdminDashboard({ user, onHome }) {
             </div>
 
             <div className="checkbox-section">
-              <h4>Queue operator dashboard</h4>
+              <h4>{roleLabels.queue_operator} dashboard</h4>
               {renderOptionList(
                 [
                   ['can_edit_user_details', 'Can edit user details'],
-                  ['can_allocate_provider', 'Can allocate service provider'],
+                  ['can_allocate_provider', `Can allocate ${roleLabels.service_provider}`],
                   ['display_user_details', 'Display user details'],
                   ['display_previous_details', 'Display previous users'],
                   ['display_suggestions', 'Display suggestions']
@@ -715,7 +820,7 @@ function AdminDashboard({ user, onHome }) {
                   ['display_cash_price', 'Display cash price'],
                   ['display_transactions', 'Display transactions'],
                   ['display_operator_contact', 'Display operator contact'],
-                  ['display_provider_contact', 'Display provider contact']
+                  ['display_provider_contact', `Display ${roleLabels.service_provider} contact`]
                 ],
                 ([key]) => branchForm.dashboard_config.user[key],
                 ([key]) => toggleUserOption(key)
@@ -751,6 +856,7 @@ function AdminDashboard({ user, onHome }) {
                 <div className="record-title">{branch.name}</div>
                 <p>{branch.branch_type}</p>
                 <p>{branch.details}</p>
+                {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
                 <small>{branch.user_schema.map((field) => `${field.key}:${field.type}`).join(', ')}</small>
               </div>
             ))}
@@ -772,6 +878,7 @@ function AdminDashboard({ user, onHome }) {
                 <div className="record-title">{branch.name}</div>
                 <p>{branch.branch_type}{branch.other_type_name ? ` / ${branch.other_type_name}` : ''}</p>
                 <p>{branch.details || 'No branch details added.'}</p>
+                {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
                 <small>{branch.user_schema.map((field) => `${field.key}:${field.type}`).join(', ')}</small>
               </div>
             ))}
@@ -785,18 +892,21 @@ function AdminDashboard({ user, onHome }) {
           <div className="section-heading">
             <div>
               <h3>Staff</h3>
-              <p>Queue managers and queue controllers created for branches.</p>
+              <p>{roleLabels.queue_operator} and {roleLabels.service_provider} accounts created for branches.</p>
             </div>
           </div>
           <div className="grid-list">
             {staff.map((item) => (
               <div className="record-card" key={item.id}>
                 <div className="record-title">{item.name}</div>
-                <p>{item.role}</p>
+                <p className="status-line">
+                  <span className={item.is_online ? 'presence-dot online' : 'presence-dot offline'}></span>
+                  {roleLabels[item.role] || item.role}
+                </p>
                 <p>{item.email}</p>
                 <p>{item.branch_name}</p>
                 {item.designation && <small>{item.designation}</small>}
-                {item.address && <small>{item.address}</small>}
+                {formatAddressParts(item) && <small>{formatAddressParts(item)}</small>}
               </div>
             ))}
             {!staff.length && <div className="empty-state">No staff created yet.</div>}
@@ -808,7 +918,7 @@ function AdminDashboard({ user, onHome }) {
         <div className="create-layout">
           <form className="control-panel" onSubmit={createStaff}>
             <div className="form-title-row">
-              <h3>Create Queue Manager or Provider</h3>
+              <h3>Create {roleLabels.queue_operator} or {roleLabels.service_provider}</h3>
               <button type="button" className="terminator-btn" onClick={closeCreatePage} aria-label="Close create staff">x</button>
             </div>
             <input placeholder="Name" value={staffForm.name} onChange={(event) => setStaffForm({ ...staffForm, name: event.target.value })} required />
@@ -816,11 +926,16 @@ function AdminDashboard({ user, onHome }) {
             <input placeholder="Phone" value={staffForm.phone} onChange={(event) => setStaffForm({ ...staffForm, phone: event.target.value })} />
             <input placeholder="Designation" value={staffForm.designation} onChange={(event) => setStaffForm({ ...staffForm, designation: event.target.value })} />
             <input placeholder="Emergency contact" value={staffForm.emergency_contact} onChange={(event) => setStaffForm({ ...staffForm, emergency_contact: event.target.value })} />
-            <textarea placeholder="Address" value={staffForm.address} onChange={(event) => setStaffForm({ ...staffForm, address: event.target.value })} />
+            <div className="inline-row field-row">
+              <input placeholder="Area" value={staffForm.area} onChange={(event) => setStaffForm({ ...staffForm, area: event.target.value })} />
+              <input placeholder="City" value={staffForm.city} onChange={(event) => setStaffForm({ ...staffForm, city: event.target.value })} />
+              <input placeholder="State" value={staffForm.state} onChange={(event) => setStaffForm({ ...staffForm, state: event.target.value })} />
+              <input placeholder="Pincode" value={staffForm.pincode} onChange={(event) => updateStaffPincode(event.target.value)} />
+            </div>
             <textarea placeholder="More personal details" value={staffForm.personal_details} onChange={(event) => setStaffForm({ ...staffForm, personal_details: event.target.value })} />
             <select value={staffForm.role} onChange={(event) => setStaffForm({ ...staffForm, role: event.target.value })}>
-              <option value="queue_operator">Queue Manager</option>
-              <option value="service_provider">Queue Controller</option>
+              <option value="queue_operator">{roleLabels.queue_operator}</option>
+              <option value="service_provider">{roleLabels.service_provider}</option>
             </select>
             <select value={staffForm.branch_id} onChange={(event) => setStaffForm({ ...staffForm, branch_id: event.target.value })} required>
               <option value="">Select branch</option>
@@ -853,20 +968,29 @@ function AdminDashboard({ user, onHome }) {
                 {queue.map((token) => (
                   <tr key={token.token_id}>
                     <td><strong>{token.token_code}</strong><br /><small>ID: {token.user_code}</small></td>
-                    <td>{token.user_name}<br /><small>{token.user_email}</small></td>
+                    <td>{token.display_name || token.user_name}<br /><small>{token.user_email}</small></td>
                     <td>{token.branch_name}</td>
                     <td><span className="badge badge-info">{token.status}</span></td>
                     <td>{token.ai_suggestion}</td>
                     <td>
-                      <div className="button-row">
-                        <button onClick={() => tokenAction(token.token_id, 'verify')}>Verify</button>
-                        <button onClick={() => tokenAction(token.token_id, 'customer_in')}>Customer In</button>
-                        <select onChange={(event) => event.target.value && tokenAction(token.token_id, 'allocate', event.target.value)} defaultValue="">
-                          <option value="">Allocate</option>
-                          {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
-                        </select>
-                        <button className="danger-btn" onClick={() => tokenAction(token.token_id, 'reject')}>Reject</button>
-                      </div>
+                      {token.status === 'cancelled' ? (
+                        <span className="cancelled-note">Token is cancelled</span>
+                      ) : (
+                        <div className="button-row">
+                          {['requested', 'verified'].includes(token.status) && (
+                            <button onClick={() => tokenAction(token.token_id, 'customer_in')}>Customer In</button>
+                          )}
+                          <select
+                            disabled={token.status !== 'customer_in'}
+                            onChange={(event) => event.target.value && tokenAction(token.token_id, 'allocate', event.target.value)}
+                            defaultValue=""
+                          >
+                            <option value="">Allocate {roleLabels.service_provider}</option>
+                            {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+                          </select>
+                          <button className="danger-btn" onClick={() => tokenAction(token.token_id, 'cancel')}>Cancel</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
               ))}
@@ -922,8 +1046,8 @@ function AdminDashboard({ user, onHome }) {
                     <th>Branch</th>
                     <th>Status</th>
                     <th>Created</th>
-                    <th>Provider</th>
-                    <th>Operator</th>
+                    <th>{roleLabels.service_provider}</th>
+                    <th>{roleLabels.queue_operator}</th>
                     <th>Details</th>
                     <th>Suggestion</th>
                   </tr>

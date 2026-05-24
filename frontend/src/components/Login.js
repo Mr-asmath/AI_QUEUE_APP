@@ -123,7 +123,7 @@ function Login({ onLogin, onSwitchToRegister }) {
           <p>Main admin: admin@queue.com / admin123</p>
           <p>Industry admin: industry@queue.com / demo123</p>
           <p>Operator: operator@queue.com / demo123</p>
-          <p>Provider: provider@queue.com / demo123</p>
+          <p>Doctor: provider@queue.com / demo123</p>
         </div>
       </div>
     </div>

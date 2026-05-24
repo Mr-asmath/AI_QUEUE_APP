@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
+import { roleLabelsFor } from '../roleLabels';
 
 function DoctorDashboard({ user }) {
   const [tokens, setTokens] = useState([]);
@@ -7,6 +8,7 @@ function DoctorDashboard({ user }) {
   const [serviceRequirements, setServiceRequirements] = useState({});
   const [aiSuggestions, setAiSuggestions] = useState({});
   const [message, setMessage] = useState('');
+  const roleLabels = roleLabelsFor(user.industry_type, tokens[0]?.branch_config?.industry_settings?.role_labels || {});
 
   const api = useCallback(async (path, options = {}) => {
     const response = await fetch(apiPath(path), {
@@ -82,8 +84,8 @@ function DoctorDashboard({ user }) {
     <div className="dashboard doctor-dashboard">
       <div className="dashboard-header">
         <div>
-          <h1>Service Provider Dashboard</h1>
-          <p className="user-email">{user.name} - {user.industry_name || 'Provider'}</p>
+          <h1>{roleLabels.service_provider} Dashboard</h1>
+          <p className="user-email">{user.name} - {user.industry_name || roleLabels.service_provider}</p>
         </div>
         <div className="stats-summary">
           <span className="stat">Active: {tokens.length}</span>
@@ -102,7 +104,7 @@ function DoctorDashboard({ user }) {
             <div className="patient-card current" key={token.token_id}>
               <div className="patient-header">
                 <span className="token-badge">{token.token_code}</span>
-                <h4>{token.user_name}</h4>
+                <h4>{token.display_name || token.user_name}</h4>
               </div>
               <p>{token.branch_name}</p>
               <div className="details-list">
@@ -112,7 +114,7 @@ function DoctorDashboard({ user }) {
               </div>
 
               <div className="provider-note-panel">
-                <label htmlFor={`requirements-${token.token_id}`}>Provider requirements</label>
+                <label htmlFor={`requirements-${token.token_id}`}>{roleLabels.service_provider} requirements</label>
                 <textarea
                   id={`requirements-${token.token_id}`}
                   rows="4"
