@@ -96,6 +96,7 @@ function AdminDashboard({ user, onHome }) {
   const [queueHistory, setQueueHistory] = useState([]);
   const [providers, setProviders] = useState([]);
   const [secretDevices, setSecretDevices] = useState([]);
+  const [secretUserLogs, setSecretUserLogs] = useState([]);
   const [securityInfo, setSecurityInfo] = useState(null);
   const [secretPassword, setSecretPassword] = useState('');
   const [showSecretLock, setShowSecretLock] = useState(false);
@@ -342,6 +343,7 @@ function AdminDashboard({ user, onHome }) {
     const data = await api('/api/admin/secret/devices');
     if (data.success) {
       setSecretDevices(data.devices || []);
+      setSecretUserLogs(data.user_logs || []);
       setSecurityInfo(data.security || null);
     } else {
       setMessage(data.error || 'Secret device table failed.');
@@ -356,6 +358,7 @@ function AdminDashboard({ user, onHome }) {
     });
     if (data.success) {
       setSecretDevices(data.devices || []);
+      setSecretUserLogs(data.user_logs || []);
       setSecurityInfo(data.security || null);
       setSecretPassword('');
       setShowSecretLock(false);
@@ -655,10 +658,56 @@ function AdminDashboard({ user, onHome }) {
             </section>
           </div>
           <div className="table-responsive">
+            <div className="section-heading compact-heading">
+              <div>
+                <h3>User Usage Log</h3>
+                <p>All past and current users are listed. Users without permission remain hidden as unknown users.</p>
+              </div>
+            </div>
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Permission</th>
+                  <th>Place</th>
+                  <th>Device</th>
+                  <th>Last Used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {secretUserLogs.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.display_name}</td>
+                    <td>{item.email}</td>
+                    <td>{item.role}</td>
+                    <td><span className={item.permission === 'Allowed' ? 'badge badge-success' : item.permission === 'Not answered' ? 'badge badge-info' : 'badge badge-warning'}>{item.permission}</span></td>
+                    <td>{item.place}</td>
+                    <td>{item.device_name}</td>
+                    <td>{item.last_used_at ? new Date(item.last_used_at).toLocaleString() : '-'}</td>
+                  </tr>
+                ))}
+                {!secretUserLogs.length && (
+                  <tr>
+                    <td colSpan="7" className="empty-table-cell">No user usage records yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="table-responsive">
+            <div className="section-heading compact-heading">
+              <div>
+                <h3>Device Event Log</h3>
+                <p>Login and permission events stored for the security table.</p>
+              </div>
+            </div>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Event</th>
                   <th>Permission</th>
                   <th>Place</th>
                   <th>Device</th>
@@ -671,6 +720,7 @@ function AdminDashboard({ user, onHome }) {
                 {secretDevices.map((item) => (
                   <tr key={item.id}>
                     <td>{item.display_name}</td>
+                    <td>{item.event_type}</td>
                     <td><span className={item.permission === 'Allowed' ? 'badge badge-success' : 'badge badge-warning'}>{item.permission}</span></td>
                     <td>{item.place}</td>
                     <td>{item.device_name}</td>
@@ -681,7 +731,7 @@ function AdminDashboard({ user, onHome }) {
                 ))}
                 {!secretDevices.length && (
                   <tr>
-                    <td colSpan="7" className="empty-table-cell">No device permission records yet.</td>
+                    <td colSpan="8" className="empty-table-cell">No device permission records yet.</td>
                   </tr>
                 )}
               </tbody>

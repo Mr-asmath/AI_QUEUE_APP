@@ -2,6 +2,99 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
 import { roleLabelOptions, roleLabelsFor } from '../roleLabels';
 
+const branchTypes = [
+  { value: 'hospital', label: 'Hospital' },
+  { value: 'school', label: 'School / College' },
+  { value: 'hotel', label: 'Hotel' },
+  { value: 'bank', label: 'Bank' },
+  { value: 'office', label: 'Office / Company' },
+  { value: 'government', label: 'Government Office' },
+  { value: 'other', label: 'Other' }
+];
+
+const fieldTypes = ['text', 'int', 'float', 'image', 'date', 'select'];
+
+const defaultBranchConfig = {
+  service_provider: {
+    display_user_details: true,
+    display_previous_details: true,
+    display_next_details: true,
+    display_current_details: true,
+    display_suggestion_boxes: true,
+    suggestion_boxes: ['Suggestion'],
+    display_search_items: true,
+    search_items: [
+      { name: 'Consultation', price: 300 },
+      { name: 'Service Charge', price: 100 }
+    ],
+    display_cash_price: true,
+    display_transactions: true,
+    aggregations: ['total', 'average', 'count'],
+    ai_suggestion: true
+  },
+  queue_operator: {
+    can_edit_user_details: true,
+    can_allocate_provider: true,
+    display_user_details: true,
+    display_previous_details: true,
+    display_suggestions: true
+  },
+  user: {
+    display_previous_suggestions: true,
+    display_current_suggestions: true,
+    display_current_queue_count: true,
+    allow_generate_token: true,
+    allow_reject_token: true,
+    display_cash_price: true,
+    display_transactions: true,
+    display_operator_contact: true,
+    display_provider_contact: true
+  },
+  industry_settings: {
+    token_name_mode: 'default',
+    customer_name_slots: 3,
+    role_labels: {}
+  }
+};
+
+const defaultUserSchema = [
+  { key: 'name', type: 'text', required: true },
+  { key: 'phone', type: 'text', required: true },
+  { key: 'need', type: 'text', required: true }
+];
+
+const hydrateBranchEditForm = (branch) => {
+  if (!branch) return null;
+  const config = branch.dashboard_config || {};
+  const serviceProvider = { ...defaultBranchConfig.service_provider, ...(config.service_provider || {}) };
+  return {
+    id: branch.id,
+    name: branch.name || '',
+    details: branch.details || '',
+    branch_type: branch.branch_type || 'hospital',
+    other_type_name: branch.other_type_name || '',
+    address: branch.address || '',
+    area: branch.area || '',
+    city: branch.city || '',
+    state: branch.state || '',
+    pincode: branch.pincode || '',
+    latitude: branch.latitude || '',
+    longitude: branch.longitude || '',
+    dashboard_config: {
+      service_provider: {
+        ...serviceProvider,
+        suggestion_boxes: Array.isArray(serviceProvider.suggestion_boxes) ? serviceProvider.suggestion_boxes : defaultBranchConfig.service_provider.suggestion_boxes,
+        search_items: Array.isArray(serviceProvider.search_items) ? serviceProvider.search_items : defaultBranchConfig.service_provider.search_items,
+        aggregations: Array.isArray(serviceProvider.aggregations) ? serviceProvider.aggregations : defaultBranchConfig.service_provider.aggregations
+      },
+      queue_operator: { ...defaultBranchConfig.queue_operator, ...(config.queue_operator || {}) },
+      user: { ...defaultBranchConfig.user, ...(config.user || {}) },
+      industry_settings: { ...defaultBranchConfig.industry_settings, ...(config.industry_settings || {}) }
+    },
+    user_schema: branch.user_schema?.length ? branch.user_schema : defaultUserSchema
+  };
+};
+
 function ProfilePage({ user, onUserUpdate, onLogout }) {
   const [activeSection, setActiveSection] = useState('account');
   const [profileForm, setProfileForm] = useState({
@@ -31,6 +124,7 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [settingsBranches, setSettingsBranches] = useState([]);
+  const [branchEditForm, setBranchEditForm] = useState(null);
   const currentRoleOptions = roleLabelOptions(user.industry_type);
   const roleLabels = roleLabelsFor(user.industry_type);
   const [settingsForm, setSettingsForm] = useState({
@@ -85,8 +179,16 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
     if (user.role !== 'industry_admin') return;
     const data = await api('/api/industry/settings');
     if (data.success) {
-      setSettingsBranches(data.branches || []);
-      const firstSettings = data.branches?.[0]?.dashboard_config?.industry_settings || {};
+      const branches = data.branches || [];
+      setSettingsBranches(branches);
+      setBranchEditForm((current) => {
+        if (current) {
+          const updated = branches.find((branch) => String(branch.id) === String(current.id));
+          return updated ? hydrateBranchEditForm(updated) : hydrateBranchEditForm(branches[0]);
+        }
+        return hydrateBranchEditForm(branches[0]);
+      });
+      const firstSettings = branches?.[0]?.dashboard_config?.industry_settings || {};
       setSettingsForm((current) => ({
         ...current,
         token_name_mode: firstSettings.token_name_mode || current.token_name_mode,
@@ -123,6 +225,104 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
       setMessage('Industry settings updated.');
     } else {
       setError(data.error || 'Industry settings update failed.');
+    }
+  };
+
+  const selectBranchForEdit = (branchId) => {
+    const branch = settingsBranches.find((item) => String(item.id) === String(branchId));
+    setBranchEditForm(hydrateBranchEditForm(branch));
+  };
+
+  const updateBranchEditPincode = (value) => {
+    const next = { ...branchEditForm, pincode: value };
+    setBranchEditForm(next);
+    if (value.trim().length === 6) fillBranchEditLocationFromPincode(next);
+  };
+
+  const fillBranchEditLocationFromPincode = async (nextForm) => {
+    const pincode = String(nextForm.pincode || '').trim();
+    if (pincode.length !== 6) return;
+    setMessage('');
+    setError('');
+    const params = new URLSearchParams({ pincode });
+    const data = await api(`/api/maps/geocode?${params.toString()}`);
+    if (data.success) {
+      setBranchEditForm((current) => ({
+        ...current,
+        address: data.location.address || current.address,
+        area: data.location.area || current.area,
+        city: data.location.city || current.city,
+        state: data.location.state || current.state,
+        pincode: data.location.pincode || current.pincode,
+        latitude: data.location.latitude || current.latitude,
+        longitude: data.location.longitude || current.longitude
+      }));
+      setMessage('Branch location filled from pincode.');
+    } else {
+      setError(data.error || 'Branch pincode lookup failed.');
+    }
+  };
+
+  const updateBranchConfig = (section, key, value) => {
+    setBranchEditForm((current) => ({
+      ...current,
+      dashboard_config: {
+        ...current.dashboard_config,
+        [section]: {
+          ...current.dashboard_config[section],
+          [key]: value
+        }
+      }
+    }));
+  };
+
+  const toggleBranchConfig = (section, key) => {
+    updateBranchConfig(section, key, !branchEditForm.dashboard_config[section][key]);
+  };
+
+  const updateBranchSuggestionBox = (index, value) => {
+    const suggestion_boxes = [...branchEditForm.dashboard_config.service_provider.suggestion_boxes];
+    suggestion_boxes[index] = value;
+    updateBranchConfig('service_provider', 'suggestion_boxes', suggestion_boxes);
+  };
+
+  const updateBranchSearchItem = (index, key, value) => {
+    const search_items = [...branchEditForm.dashboard_config.service_provider.search_items];
+    search_items[index] = { ...search_items[index], [key]: key === 'price' ? Number(value) : value };
+    updateBranchConfig('service_provider', 'search_items', search_items);
+  };
+
+  const updateBranchUserField = (index, key, value) => {
+    const user_schema = [...branchEditForm.user_schema];
+    user_schema[index] = { ...user_schema[index], [key]: key === 'required' ? Boolean(value) : value };
+    setBranchEditForm({ ...branchEditForm, user_schema });
+  };
+
+  const saveBranchSettings = async (event) => {
+    event.preventDefault();
+    if (!branchEditForm) return;
+    setMessage('');
+    setError('');
+    const payload = {
+      ...branchEditForm,
+      user_schema: branchEditForm.user_schema.filter((item) => item.key.trim()).map((item) => ({
+        ...item,
+        key: item.key.trim(),
+        required: Boolean(item.required)
+      }))
+    };
+    const data = await api(`/api/industry/branches/${branchEditForm.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+    if (data.success) {
+      const branches = data.branches || [];
+      setSettingsBranches(branches);
+      const updated = branches.find((branch) => String(branch.id) === String(branchEditForm.id));
+      setBranchEditForm(hydrateBranchEditForm(updated || data.branch));
+      setMessage('Branch settings updated.');
+    } else {
+      setError(data.error || 'Branch settings update failed.');
     }
   };
 
@@ -333,6 +533,7 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
         )}
 
         {activeSection === 'industry-settings' && user.role === 'industry_admin' && (
+          <>
           <form className="control-panel" onSubmit={saveIndustrySettings}>
             <h3>Industry Settings</h3>
             <div className="form-group">
@@ -422,6 +623,160 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
 
             <button type="submit">Save Industry Settings</button>
           </form>
+          {branchEditForm && (
+            <form className="control-panel" onSubmit={saveBranchSettings}>
+              <h3>Existing Branch Settings</h3>
+              <div className="form-group">
+                <label>Select branch to edit</label>
+                <select value={branchEditForm.id} onChange={(event) => selectBranchForEdit(event.target.value)}>
+                  {settingsBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Branch name</label>
+                <input value={branchEditForm.name} onChange={(event) => setBranchEditForm({ ...branchEditForm, name: event.target.value })} required />
+              </div>
+              <div className="form-group">
+                <label>Branch details</label>
+                <textarea value={branchEditForm.details} onChange={(event) => setBranchEditForm({ ...branchEditForm, details: event.target.value })} />
+              </div>
+              <div className="inline-row field-row">
+                <div className="form-group">
+                  <label>Branch type</label>
+                  <select value={branchEditForm.branch_type} onChange={(event) => setBranchEditForm({ ...branchEditForm, branch_type: event.target.value })}>
+                    {branchTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                  </select>
+                </div>
+                {branchEditForm.branch_type === 'other' && (
+                  <div className="form-group">
+                    <label>Other type name</label>
+                    <input value={branchEditForm.other_type_name} onChange={(event) => setBranchEditForm({ ...branchEditForm, other_type_name: event.target.value })} required />
+                  </div>
+                )}
+              </div>
+
+              <div className="mini-builder">
+                <h4>Branch map location</h4>
+                <div className="inline-row field-row">
+                  <input placeholder="Area" value={branchEditForm.area} onChange={(event) => setBranchEditForm({ ...branchEditForm, area: event.target.value })} />
+                  <input placeholder="City" value={branchEditForm.city} onChange={(event) => setBranchEditForm({ ...branchEditForm, city: event.target.value })} />
+                  <input placeholder="State" value={branchEditForm.state} onChange={(event) => setBranchEditForm({ ...branchEditForm, state: event.target.value })} />
+                  <input placeholder="Pincode" value={branchEditForm.pincode} onChange={(event) => updateBranchEditPincode(event.target.value)} />
+                </div>
+                <div className="inline-row">
+                  <input placeholder="Latitude" value={branchEditForm.latitude} onChange={(event) => setBranchEditForm({ ...branchEditForm, latitude: event.target.value })} />
+                  <input placeholder="Longitude" value={branchEditForm.longitude} onChange={(event) => setBranchEditForm({ ...branchEditForm, longitude: event.target.value })} />
+                </div>
+              </div>
+
+              <div className="checkbox-section">
+                <h4>{roleLabels.service_provider} dashboard controls</h4>
+                {[
+                  ['display_user_details', 'Display user details'],
+                  ['display_previous_details', 'Display previous user details'],
+                  ['display_next_details', 'Display next details'],
+                  ['display_current_details', 'Display current user details'],
+                  ['display_suggestion_boxes', 'Display suggestion text boxes'],
+                  ['display_search_items', 'Display checkbox items'],
+                  ['display_cash_price', 'Display cash price totals'],
+                  ['display_transactions', 'Display transactions'],
+                  ['ai_suggestion', 'Display AI suggestion button']
+                ].map(([key, label]) => (
+                  <label className="inline-check" key={key}>
+                    <input type="checkbox" checked={Boolean(branchEditForm.dashboard_config.service_provider[key])} onChange={() => toggleBranchConfig('service_provider', key)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div className="mini-builder">
+                <h4>Suggestion boxes</h4>
+                {branchEditForm.dashboard_config.service_provider.suggestion_boxes.map((title, index) => (
+                  <div className="inline-row" key={`profile-suggestion-${index}`}>
+                    <input value={title} onChange={(event) => updateBranchSuggestionBox(index, event.target.value)} placeholder="Suggestion title" />
+                    <button type="button" className="danger-btn" onClick={() => updateBranchConfig('service_provider', 'suggestion_boxes', branchEditForm.dashboard_config.service_provider.suggestion_boxes.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => updateBranchConfig('service_provider', 'suggestion_boxes', [...branchEditForm.dashboard_config.service_provider.suggestion_boxes, `Suggestion ${branchEditForm.dashboard_config.service_provider.suggestion_boxes.length + 1}`])}>Add Suggestion Box</button>
+              </div>
+
+              <div className="mini-builder">
+                <h4>Checkbox items, values, and prices</h4>
+                {branchEditForm.dashboard_config.service_provider.search_items.map((item, index) => (
+                  <div className="inline-row" key={`profile-item-${index}`}>
+                    <input value={item.name} onChange={(event) => updateBranchSearchItem(index, 'name', event.target.value)} placeholder="Item name" />
+                    <input type="number" value={item.price} onChange={(event) => updateBranchSearchItem(index, 'price', event.target.value)} placeholder="Price" />
+                    <button type="button" className="danger-btn" onClick={() => updateBranchConfig('service_provider', 'search_items', branchEditForm.dashboard_config.service_provider.search_items.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => updateBranchConfig('service_provider', 'search_items', [...branchEditForm.dashboard_config.service_provider.search_items, { name: '', price: 0 }])}>Add Checkbox Item</button>
+              </div>
+
+              <div className="checkbox-section">
+                <h4>{roleLabels.queue_operator} dashboard controls</h4>
+                {[
+                  ['can_edit_user_details', 'Can edit user details'],
+                  ['can_allocate_provider', `Can allocate ${roleLabels.service_provider}`],
+                  ['display_user_details', 'Display user details'],
+                  ['display_previous_details', 'Display previous users'],
+                  ['display_suggestions', 'Display suggestions']
+                ].map(([key, label]) => (
+                  <label className="inline-check" key={key}>
+                    <input type="checkbox" checked={Boolean(branchEditForm.dashboard_config.queue_operator[key])} onChange={() => toggleBranchConfig('queue_operator', key)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div className="checkbox-section">
+                <h4>User site controls</h4>
+                {[
+                  ['display_previous_suggestions', 'Display previous suggestions'],
+                  ['display_current_suggestions', 'Display current suggestions'],
+                  ['display_current_queue_count', 'Display current queue count'],
+                  ['allow_generate_token', 'Allow generate queue token'],
+                  ['allow_reject_token', 'Allow reject queue token'],
+                  ['display_cash_price', 'Display cash price'],
+                  ['display_transactions', 'Display transactions'],
+                  ['display_operator_contact', 'Display operator contact'],
+                  ['display_provider_contact', `Display ${roleLabels.service_provider} contact`]
+                ].map(([key, label]) => (
+                  <label className="inline-check" key={key}>
+                    <input type="checkbox" checked={Boolean(branchEditForm.dashboard_config.user[key])} onChange={() => toggleBranchConfig('user', key)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div className="mini-builder">
+                <h4>User form inputs</h4>
+                {branchEditForm.user_schema.map((field, index) => (
+                  <div className="inline-row field-row" key={`profile-field-${index}`}>
+                    <input value={field.key} onChange={(event) => updateBranchUserField(index, 'key', event.target.value)} placeholder="Input name" />
+                    <select value={field.type} onChange={(event) => updateBranchUserField(index, 'type', event.target.value)}>
+                      {fieldTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                    <label className="inline-check">
+                      <input type="checkbox" checked={Boolean(field.required)} onChange={(event) => updateBranchUserField(index, 'required', event.target.checked)} />
+                      Required
+                    </label>
+                    <button type="button" className="danger-btn" onClick={() => setBranchEditForm({ ...branchEditForm, user_schema: branchEditForm.user_schema.filter((_, itemIndex) => itemIndex !== index) })}>Remove</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setBranchEditForm({ ...branchEditForm, user_schema: [...branchEditForm.user_schema, { key: '', type: 'text', required: true }] })}>Add User Input</button>
+              </div>
+
+              <button type="submit">Save Branch Settings</button>
+            </form>
+          )}
+          {!branchEditForm && (
+            <section className="control-panel">
+              <h3>Existing Branch Settings</h3>
+              <p className="muted-text">Create a branch first, then edit its name, values, attributes, and input fields here.</p>
+            </section>
+          )}
+          </>
         )}
 
         {activeSection === 'password' && (

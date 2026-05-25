@@ -170,6 +170,7 @@ class DeviceAudit(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    event_type = db.Column(db.String(40), default="consent")
     consent_allowed = db.Column(db.Boolean, default=False, nullable=False)
     display_name_encrypted = db.Column(db.Text)
     device_name_encrypted = db.Column(db.Text)
@@ -482,6 +483,23 @@ def client_ip():
     return (forwarded.split(",", 1)[0] or request.remote_addr or "").strip()
 
 
+def record_device_audit(user, details=None, consent_allowed=None, event_type="usage"):
+    details = details or {}
+    allowed = bool(user.device_consent) if consent_allowed is None else bool(consent_allowed)
+    audit = DeviceAudit(
+        user_id=user.id if allowed else None,
+        event_type=event_type,
+        consent_allowed=allowed,
+        display_name_encrypted=encrypt_text(user.name if allowed else "Unknown user"),
+        device_name_encrypted=encrypt_text(details.get("device_name") or details.get("platform") or "Unknown device"),
+        place_encrypted=encrypt_text(details.get("place") or "Unknown place"),
+        ip_encrypted=encrypt_text(client_ip()),
+        user_agent_encrypted=encrypt_text(request.headers.get("User-Agent") or details.get("user_agent") or "Unknown browser"),
+    )
+    db.session.add(audit)
+    return audit
+
+
 def branch_config(branch):
     config = as_json(branch.dashboard_config_json, {})
     config.setdefault("industry_settings", {})
@@ -649,6 +667,7 @@ def serialize_device_audit(item):
     return {
         "id": item.id,
         "user_id": item.user_id,
+        "event_type": item.event_type or "consent",
         "display_name": name if item.consent_allowed else "Unknown user",
         "device_name": decrypt_text(item.device_name_encrypted) if item.consent_allowed else "Not shared",
         "place": decrypt_text(item.place_encrypted) if item.consent_allowed else "Not shared",
@@ -656,6 +675,25 @@ def serialize_device_audit(item):
         "browser": decrypt_text(item.user_agent_encrypted) if item.consent_allowed else "Hidden",
         "permission": "Allowed" if item.consent_allowed else "Not allowed",
         "created_at": item.created_at.isoformat() + "Z" if item.created_at else None,
+    }
+
+
+def serialize_user_security_log(user, audit=None):
+    allowed = bool(user.device_consent)
+    answered = user.device_consent is not None
+    return {
+        "id": user.id,
+        "display_name": user.name if allowed else "Unknown user",
+        "email": user.email if allowed else "Hidden",
+        "role": user.role if allowed else "Hidden",
+        "permission": "Allowed" if allowed else "Not allowed" if answered else "Not answered",
+        "device_name": decrypt_text(audit.device_name_encrypted) if allowed and audit else "Not shared",
+        "place": decrypt_text(audit.place_encrypted) if allowed and audit else "Not shared",
+        "ip_address": decrypt_text(audit.ip_encrypted) if allowed and audit else "Hidden",
+        "browser": decrypt_text(audit.user_agent_encrypted) if allowed and audit else "Hidden",
+        "last_used_at": user.last_seen_at.isoformat() + "Z" if user.last_seen_at else None,
+        "consent_at": user.device_consent_at.isoformat() + "Z" if user.device_consent_at else None,
+        "created_at": user.created_at.isoformat() + "Z" if user.created_at else None,
     }
 
 
@@ -820,6 +858,8 @@ def login():
         return jsonify({"success": False, "error": "Invalid email or password"}), 401
     session["user_id"] = user.id
     session["user_role"] = user.role
+    record_device_audit(user, data.get("device_details") or {}, event_type="login")
+    db.session.commit()
     return jsonify({"success": True, "user": serialize_user(user)}), 200
 
 
@@ -853,17 +893,7 @@ def device_consent():
     user.device_consent = allow
     user.device_consent_at = now
 
-    display_name = user.name if allow else "Unknown user"
-    audit = DeviceAudit(
-        user_id=user.id if allow else None,
-        consent_allowed=allow,
-        display_name_encrypted=encrypt_text(display_name),
-        device_name_encrypted=encrypt_text(details.get("device_name") or details.get("platform") or "Unknown device"),
-        place_encrypted=encrypt_text(details.get("place") or "Unknown place"),
-        ip_encrypted=encrypt_text(client_ip()),
-        user_agent_encrypted=encrypt_text(request.headers.get("User-Agent") or details.get("user_agent") or "Unknown browser"),
-    )
-    db.session.add(audit)
+    record_device_audit(user, details, consent_allowed=allow, event_type="consent")
     db.session.commit()
     return jsonify({"success": True, "user": serialize_user(user)}), 200
 
@@ -875,6 +905,11 @@ def admin_secret_devices():
     if not session.get("secret_unlocked"):
         return jsonify({"success": False, "error": "Secret password required"}), 403
     audits = DeviceAudit.query.order_by(DeviceAudit.created_at.desc()).limit(200).all()
+    latest_audits = {}
+    for item in DeviceAudit.query.filter(DeviceAudit.user_id.isnot(None)).order_by(DeviceAudit.created_at.desc()).limit(1000).all():
+        latest_audits.setdefault(item.user_id, item)
+    users = User.query.order_by(User.created_at.desc()).all()
+    users.sort(key=lambda item: item.last_seen_at or item.created_at or datetime.min, reverse=True)
     return jsonify(
         {
             "success": True,
@@ -884,6 +919,7 @@ def admin_secret_devices():
                 "headers": ["X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"],
             },
             "devices": [serialize_device_audit(item) for item in audits],
+            "user_logs": [serialize_user_security_log(item, latest_audits.get(item.id)) for item in users],
         }
     ), 200
 
@@ -1385,6 +1421,39 @@ def industry_branches():
     db.session.add(branch)
     db.session.commit()
     return jsonify({"success": True, "branch": serialize_branch(branch)}), 201
+
+
+@app.route("/api/industry/branches/<int:branch_id>", methods=["PUT"])
+@login_required
+@role_required("industry_admin")
+def update_industry_branch(branch_id):
+    user = current_user()
+    branch = db.session.get(Branch, branch_id)
+    if not branch or branch.industry_id != user.industry_id:
+        return jsonify({"success": False, "error": "Branch not found"}), 404
+
+    data = request.get_json() or {}
+    if not data.get("name") or not data.get("branch_type"):
+        return jsonify({"success": False, "error": "Branch name and type are required"}), 400
+    if data["branch_type"] == "other" and not data.get("other_type_name"):
+        return jsonify({"success": False, "error": "Other type name is required"}), 400
+
+    branch.name = data["name"].strip()
+    branch.details = data.get("details")
+    branch.branch_type = data["branch_type"]
+    branch.other_type_name = data.get("other_type_name")
+    branch.address = (data.get("address") or "").strip() or None
+    branch.area = (data.get("area") or "").strip() or None
+    branch.city = (data.get("city") or "").strip() or None
+    branch.state = (data.get("state") or "").strip() or None
+    branch.pincode = (data.get("pincode") or "").strip() or None
+    branch.latitude = float(data["latitude"]) if data.get("latitude") not in (None, "") else None
+    branch.longitude = float(data["longitude"]) if data.get("longitude") not in (None, "") else None
+    branch.dashboard_config_json = dumps(data.get("dashboard_config") or {})
+    branch.user_schema_json = dumps(data.get("user_schema") or [])
+    db.session.commit()
+    branches = Branch.query.filter_by(industry_id=user.industry_id).order_by(Branch.name.asc()).all()
+    return jsonify({"success": True, "branch": serialize_branch(branch), "branches": [serialize_branch(item) for item in branches]}), 200
 
 
 @app.route("/api/industry/settings", methods=["GET", "PUT"])
@@ -2140,6 +2209,9 @@ def ensure_schema_updates():
         statements.append("ALTER TABLE branches ADD COLUMN latitude FLOAT")
     if "longitude" not in branch_columns:
         statements.append("ALTER TABLE branches ADD COLUMN longitude FLOAT")
+    device_columns = {column["name"] for column in inspector.get_columns("device_audits")} if inspector.has_table("device_audits") else set()
+    if "event_type" not in device_columns:
+        statements.append("ALTER TABLE device_audits ADD COLUMN event_type VARCHAR(40) DEFAULT 'consent'")
 
     if engine_name == "sqlite":
         with db.engine.begin() as connection:
