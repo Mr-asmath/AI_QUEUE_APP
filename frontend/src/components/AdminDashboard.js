@@ -95,6 +95,10 @@ function AdminDashboard({ user, onHome }) {
   const [queue, setQueue] = useState([]);
   const [queueHistory, setQueueHistory] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [secretDevices, setSecretDevices] = useState([]);
+  const [securityInfo, setSecurityInfo] = useState(null);
+  const [secretPassword, setSecretPassword] = useState('');
+  const [showSecretLock, setShowSecretLock] = useState(false);
   const [historyFilters, setHistoryFilters] = useState({ q: '', date_from: '', date_to: '' });
   const [branchForm, setBranchForm] = useState(emptyBranch);
   const [roleLabelConfig, setRoleLabelConfig] = useState({});
@@ -333,11 +337,48 @@ function AdminDashboard({ user, onHome }) {
     else setMessage(data.error || 'Queue history failed.');
   }, [api, historyFilters]);
 
+  const loadSecretDevices = useCallback(async () => {
+    if (user.role !== 'main_admin') return;
+    const data = await api('/api/admin/secret/devices');
+    if (data.success) {
+      setSecretDevices(data.devices || []);
+      setSecurityInfo(data.security || null);
+    } else {
+      setMessage(data.error || 'Secret device table failed.');
+    }
+  }, [api, user.role]);
+
+  const unlockSecret = async (event) => {
+    event.preventDefault();
+    const data = await api('/api/admin/secret/unlock', {
+      method: 'POST',
+      body: JSON.stringify({ password: secretPassword })
+    });
+    if (data.success) {
+      setSecretDevices(data.devices || []);
+      setSecurityInfo(data.security || null);
+      setSecretPassword('');
+      setShowSecretLock(false);
+      setActiveTab('secret');
+      setMessage('Secret section unlocked.');
+    } else {
+      setMessage(data.error || 'Secret unlock failed.');
+    }
+  };
+
+  const openSecretLock = () => {
+    setSecretPassword('');
+    setShowSecretLock(true);
+  };
+
   useEffect(() => {
     if (activeTab === 'queue-history') {
       loadQueueHistory();
     }
-  }, [activeTab, loadQueueHistory]);
+    if (activeTab === 'secret' && !showSecretLock) {
+      loadSecretDevices();
+    }
+  }, [activeTab, loadQueueHistory, loadSecretDevices, showSecretLock]);
 
   const toggleServiceProviderOption = (key) => {
     setBranchForm({
@@ -504,6 +545,11 @@ function AdminDashboard({ user, onHome }) {
           <p className="user-email">{user.industry_name || 'All industries'}</p>
         </div>
         <div className="stats-summary">
+          {user.role === 'main_admin' && (
+            <button type="button" className="secret-logo-btn" onClick={openSecretLock} aria-label="Open secret section">
+              Secret
+            </button>
+          )}
           <span className="stat">Queue: {queue.length}</span>
           <span className="stat">Branches: {branches.length}</span>
           <span className="stat">Staff: {staff.length}</span>
@@ -511,6 +557,29 @@ function AdminDashboard({ user, onHome }) {
       </div>
 
       {message && <div className="success-message">{message}</div>}
+
+      {showSecretLock && (
+        <div className="consent-overlay">
+          <form className="consent-dialog" onSubmit={unlockSecret}>
+            <h3>Secret Password</h3>
+            <p>Enter the main admin secret password to open the device security table.</p>
+            <div className="form-group">
+              <label>Secret password</label>
+              <input
+                type="password"
+                value={secretPassword}
+                onChange={(event) => setSecretPassword(event.target.value)}
+                autoFocus
+                required
+              />
+            </div>
+            <div className="button-row">
+              <button type="submit">Open Secret</button>
+              <button type="button" className="secondary-btn" onClick={() => setShowSecretLock(false)}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="dashboard-tabs">
         {dashboardTabs.map((tab) => (
@@ -559,6 +628,65 @@ function AdminDashboard({ user, onHome }) {
               {item.generated_password && <code>Default password: {item.generated_password}</code>}
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === 'secret' && user.role === 'main_admin' && (
+        <div className="section-stack secret-section">
+          <div className="section-heading">
+            <div>
+              <h3>Secret Security</h3>
+              <p>Main-admin-only device permission log and data protection status.</p>
+            </div>
+            <button type="button" className="secondary-btn" onClick={loadSecretDevices}>Refresh</button>
+          </div>
+          <div className="security-summary-grid">
+            <section>
+              <span>Terms</span>
+              <p>{securityInfo?.terms || 'Terms loading...'}</p>
+            </section>
+            <section>
+              <span>Encryption</span>
+              <p>{securityInfo?.encryption || 'Device audit data is protected before display.'}</p>
+            </section>
+            <section>
+              <span>Security headers</span>
+              <p>{(securityInfo?.headers || []).join(', ') || 'Headers loading...'}</p>
+            </section>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Permission</th>
+                  <th>Place</th>
+                  <th>Device</th>
+                  <th>IP</th>
+                  <th>Browser</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {secretDevices.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.display_name}</td>
+                    <td><span className={item.permission === 'Allowed' ? 'badge badge-success' : 'badge badge-warning'}>{item.permission}</span></td>
+                    <td>{item.place}</td>
+                    <td>{item.device_name}</td>
+                    <td>{item.ip_address}</td>
+                    <td>{item.browser}</td>
+                    <td>{new Date(item.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+                {!secretDevices.length && (
+                  <tr>
+                    <td colSpan="7" className="empty-table-cell">No device permission records yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

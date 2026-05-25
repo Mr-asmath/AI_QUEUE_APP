@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { apiPath } from '../config';
 
 function Register({ onRegister, onSwitchToLogin }) {
   const [mode, setMode] = useState('user');
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [termsText, setTermsText] = useState('Loading terms and conditions...');
   const [requestForm, setRequestForm] = useState({
     admin_name: '',
     admin_email: '',
@@ -17,6 +20,25 @@ function Register({ onRegister, onSwitchToLogin }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    const loadTerms = async () => {
+      try {
+        const response = await fetch(apiPath('/api/security/terms'));
+        const data = await response.json();
+        if (active && data.success) {
+          setTermsText(data.terms || 'Terms and conditions are available.');
+        }
+      } catch (err) {
+        if (active) setTermsText('Terms and conditions could not be loaded right now.');
+      }
+    };
+    loadTerms();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const registerUser = async (event) => {
     event.preventDefault();
     setLoading(true);
@@ -25,7 +47,7 @@ function Register({ onRegister, onSwitchToLogin }) {
       const response = await fetch(apiPath('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userForm)
+        body: JSON.stringify({ ...userForm, terms_accepted: termsAccepted })
       });
       const data = await response.json();
       if (!data.success) {
@@ -97,7 +119,21 @@ function Register({ onRegister, onSwitchToLogin }) {
                 />
               </div>
             ))}
-            <button type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create User Account'}</button>
+            <label className="terms-check">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(event) => setTermsAccepted(event.target.checked)}
+              />
+              <span>
+                I accept the{' '}
+                <button type="button" className="terms-link" onClick={() => setTermsOpen(true)}>
+                  terms and conditions
+                </button>
+                , data security policy, and device-sharing consent controls.
+              </span>
+            </label>
+            <button type="submit" disabled={loading || !termsAccepted}>{loading ? 'Creating...' : 'Create User Account'}</button>
           </form>
         ) : (
           <form onSubmit={sendAccessRequest}>
@@ -147,6 +183,20 @@ function Register({ onRegister, onSwitchToLogin }) {
           Already approved? <button className="link-button" onClick={onSwitchToLogin}>Back to login</button>
         </p>
       </div>
+
+      {termsOpen && (
+        <div className="terms-modal-overlay" role="presentation" onClick={() => setTermsOpen(false)}>
+          <div className="terms-modal" role="dialog" aria-modal="true" aria-labelledby="terms-modal-title" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="terms-modal-close" aria-label="Close terms and conditions" onClick={() => setTermsOpen(false)}>
+              x
+            </button>
+            <h3 id="terms-modal-title">Terms and Conditions</h3>
+            <div className="terms-modal-body">
+              {termsText}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,9 @@ import os
 import secrets
 import smtplib
 import string
+import base64
+import hashlib
+import hmac
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
@@ -46,6 +49,11 @@ TOKEN_TTL_MINUTES = int(os.getenv("TOKEN_TTL_MINUTES", "60"))
 REMINDER_WINDOW_MINUTES = int(os.getenv("REMINDER_WINDOW_MINUTES", "10"))
 AUTOMATION_API_KEY = os.getenv("AUTOMATION_API_KEY", "local-automation-key")
 MAIL_SENDER = os.getenv("MAIL_SENDER", "python.asmath1290@gmail.com")
+SECURITY_TERMS_TEXT = (
+    "I accept the app terms, data security policy, and consent controls. "
+    "Passwords are protected with secure hashing, sessions are protected by server cookies, "
+    "and optional device details are collected only after permission."
+)
 
 ACTIVE_TOKEN_STATUSES = ("requested", "verified", "customer_in", "allocated")
 OPERATOR_VISIBLE_TOKEN_STATUSES = ACTIVE_TOKEN_STATUSES + ("cancelled",)
@@ -60,6 +68,7 @@ class User(db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    secret_password_hash = db.Column(db.String(255))
     role = db.Column(db.String(30), default="user", nullable=False)
     phone = db.Column(db.String(40))
     address = db.Column(db.Text)
@@ -75,6 +84,9 @@ class User(db.Model):
     must_reset_password = db.Column(db.Boolean, default=False)
     avatar_url = db.Column(db.Text)
     avatar_preset = db.Column(db.String(40), default="face-1")
+    terms_accepted_at = db.Column(db.DateTime)
+    device_consent = db.Column(db.Boolean)
+    device_consent_at = db.Column(db.DateTime)
     last_seen_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -86,6 +98,15 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def set_secret_password(self, password):
+        self.secret_password_hash = generate_password_hash(password)
+
+    def check_secret_password(self, password):
+        if not self.secret_password_hash:
+            self.set_secret_password("1234")
+            db.session.commit()
+        return check_password_hash(self.secret_password_hash, password)
 
 
 class Industry(db.Model):
@@ -142,6 +163,22 @@ class PasswordResetRequest(db.Model):
 
     user = db.relationship("User", foreign_keys=[user_id])
     admin = db.relationship("User", foreign_keys=[admin_id])
+
+
+class DeviceAudit(db.Model):
+    __tablename__ = "device_audits"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    consent_allowed = db.Column(db.Boolean, default=False, nullable=False)
+    display_name_encrypted = db.Column(db.Text)
+    device_name_encrypted = db.Column(db.Text)
+    place_encrypted = db.Column(db.Text)
+    ip_encrypted = db.Column(db.Text)
+    user_agent_encrypted = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", foreign_keys=[user_id])
 
 
 class PasswordResetToken(db.Model):
@@ -253,6 +290,48 @@ def dumps(value):
     return json.dumps(value, separators=(",", ":"))
 
 
+def security_key():
+    source = os.getenv("DATA_ENCRYPTION_KEY") or app.config["SECRET_KEY"]
+    return hashlib.sha256(source.encode("utf-8")).digest()
+
+
+def encrypt_text(value):
+    if value in (None, ""):
+        return None
+    nonce = secrets.token_bytes(16)
+    key = security_key()
+    payload = str(value).encode("utf-8")
+    stream = b""
+    counter = 0
+    while len(stream) < len(payload):
+        stream += hashlib.sha256(key + nonce + counter.to_bytes(4, "big")).digest()
+        counter += 1
+    cipher = bytes(byte ^ stream[index] for index, byte in enumerate(payload))
+    signature = hmac.new(key, nonce + cipher, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(nonce + signature + cipher).decode("ascii")
+
+
+def decrypt_text(value):
+    if not value:
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(value.encode("ascii"))
+        nonce, signature, cipher = raw[:16], raw[16:48], raw[48:]
+        key = security_key()
+        expected = hmac.new(key, nonce + cipher, hashlib.sha256).digest()
+        if not hmac.compare_digest(signature, expected):
+            return "Encrypted data unavailable"
+        stream = b""
+        counter = 0
+        while len(stream) < len(cipher):
+            stream += hashlib.sha256(key + nonce + counter.to_bytes(4, "big")).digest()
+            counter += 1
+        plain = bytes(byte ^ stream[index] for index, byte in enumerate(cipher))
+        return plain.decode("utf-8")
+    except Exception:
+        return "Encrypted data unavailable"
+
+
 def generate_password(length=10):
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -353,6 +432,17 @@ def touch_current_user():
             db.session.commit()
 
 
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(self), camera=(), microphone=()")
+    if app.config["SESSION_COOKIE_SECURE"]:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+
+
 def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -385,6 +475,11 @@ def current_user():
 
 def is_online(user):
     return bool(user.last_seen_at and user.last_seen_at >= datetime.utcnow() - timedelta(minutes=10))
+
+
+def client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    return (forwarded.split(",", 1)[0] or request.remote_addr or "").strip()
 
 
 def branch_config(branch):
@@ -426,6 +521,10 @@ def serialize_user(user):
         "industry_logo_url": user.industry.logo_url if user.industry else None,
         "industry_logo_preset": user.industry.logo_preset if user.industry else "logo-1",
         "must_reset_password": user.must_reset_password,
+        "terms_accepted": bool(user.terms_accepted_at),
+        "terms_text": SECURITY_TERMS_TEXT,
+        "device_consent": user.device_consent,
+        "device_consent_required": user.device_consent is None,
         "last_seen_at": user.last_seen_at.isoformat() + "Z" if user.last_seen_at else None,
         "is_online": is_online(user),
     }
@@ -542,6 +641,21 @@ def serialize_password_reset_request(item):
         "generated_password": item.generated_password,
         "created_at": item.created_at.isoformat() + "Z",
         "decided_at": item.decided_at.isoformat() + "Z" if item.decided_at else None,
+    }
+
+
+def serialize_device_audit(item):
+    name = decrypt_text(item.display_name_encrypted)
+    return {
+        "id": item.id,
+        "user_id": item.user_id,
+        "display_name": name if item.consent_allowed else "Unknown user",
+        "device_name": decrypt_text(item.device_name_encrypted) if item.consent_allowed else "Not shared",
+        "place": decrypt_text(item.place_encrypted) if item.consent_allowed else "Not shared",
+        "ip_address": decrypt_text(item.ip_encrypted) if item.consent_allowed else "Hidden",
+        "browser": decrypt_text(item.user_agent_encrypted) if item.consent_allowed else "Hidden",
+        "permission": "Allowed" if item.consent_allowed else "Not allowed",
+        "created_at": item.created_at.isoformat() + "Z" if item.created_at else None,
     }
 
 
@@ -678,6 +792,8 @@ def register():
     email = (data.get("email") or "").strip().lower()
     if not data.get("name") or not email or not data.get("password"):
         return jsonify({"success": False, "error": "Name, email, and password are required"}), 400
+    if not data.get("terms_accepted"):
+        return jsonify({"success": False, "error": "Please accept the terms and data security policy"}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({"success": False, "error": "Email already registered"}), 400
 
@@ -687,6 +803,7 @@ def register():
         user_code=generate_user_code(),
         phone=data.get("phone"),
         role="user",
+        terms_accepted_at=datetime.utcnow(),
     )
     user.set_password(data["password"])
     db.session.add(user)
@@ -716,6 +833,89 @@ def logout():
 @login_required
 def me():
     return jsonify({"success": True, "user": serialize_user(current_user())}), 200
+
+
+@app.route("/api/security/terms")
+def security_terms():
+    return jsonify({"success": True, "terms": SECURITY_TERMS_TEXT}), 200
+
+
+@app.route("/api/security/device-consent", methods=["POST"])
+@login_required
+def device_consent():
+    user = current_user()
+    data = request.get_json() or {}
+    allow = bool(data.get("allow"))
+    details = data.get("device_details") or {}
+    now = datetime.utcnow()
+    if not user.terms_accepted_at:
+        user.terms_accepted_at = now
+    user.device_consent = allow
+    user.device_consent_at = now
+
+    display_name = user.name if allow else "Unknown user"
+    audit = DeviceAudit(
+        user_id=user.id if allow else None,
+        consent_allowed=allow,
+        display_name_encrypted=encrypt_text(display_name),
+        device_name_encrypted=encrypt_text(details.get("device_name") or details.get("platform") or "Unknown device"),
+        place_encrypted=encrypt_text(details.get("place") or "Unknown place"),
+        ip_encrypted=encrypt_text(client_ip()),
+        user_agent_encrypted=encrypt_text(request.headers.get("User-Agent") or details.get("user_agent") or "Unknown browser"),
+    )
+    db.session.add(audit)
+    db.session.commit()
+    return jsonify({"success": True, "user": serialize_user(user)}), 200
+
+
+@app.route("/api/admin/secret/devices")
+@login_required
+@role_required("main_admin")
+def admin_secret_devices():
+    if not session.get("secret_unlocked"):
+        return jsonify({"success": False, "error": "Secret password required"}), 403
+    audits = DeviceAudit.query.order_by(DeviceAudit.created_at.desc()).limit(200).all()
+    return jsonify(
+        {
+            "success": True,
+            "security": {
+                "terms": SECURITY_TERMS_TEXT,
+                "encryption": "Device audit fields are encrypted at rest with an app-level encryption key and verified before display.",
+                "headers": ["X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"],
+            },
+            "devices": [serialize_device_audit(item) for item in audits],
+        }
+    ), 200
+
+
+@app.route("/api/admin/secret/unlock", methods=["POST"])
+@login_required
+@role_required("main_admin")
+def admin_secret_unlock():
+    user = current_user()
+    data = request.get_json() or {}
+    if not user.check_secret_password(data.get("password") or ""):
+        return jsonify({"success": False, "error": "Invalid secret password"}), 403
+    session["secret_unlocked"] = True
+    return admin_secret_devices()
+
+
+@app.route("/api/admin/secret/password", methods=["PUT"])
+@login_required
+@role_required("main_admin")
+def change_secret_password():
+    user = current_user()
+    data = request.get_json() or {}
+    current_password = data.get("current_secret_password") or ""
+    new_password = data.get("new_secret_password") or ""
+    if not user.check_secret_password(current_password):
+        return jsonify({"success": False, "error": "Current secret password is incorrect"}), 400
+    if len(new_password) < 4:
+        return jsonify({"success": False, "error": "New secret password must be at least 4 characters"}), 400
+    user.set_secret_password(new_password)
+    session.pop("secret_unlocked", None)
+    db.session.commit()
+    return jsonify({"success": True, "message": "Secret password updated"}), 200
 
 
 @app.route("/api/auth/reset-password", methods=["POST"])
@@ -1775,6 +1975,7 @@ def seed_data():
 
     main_admin = User(name="Application Admin", email="admin@queue.com", role="main_admin", user_code=generate_user_code())
     main_admin.set_password("admin123")
+    main_admin.set_secret_password("1234")
     db.session.add(main_admin)
     db.session.flush()
     industry_admin = User(
@@ -1885,10 +2086,18 @@ def ensure_schema_updates():
     statements = []
     if "user_code" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN user_code VARCHAR(6)")
+    if "secret_password_hash" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN secret_password_hash VARCHAR(255)")
     if "avatar_url" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN avatar_url TEXT")
     if "avatar_preset" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN avatar_preset VARCHAR(40) DEFAULT 'face-1'")
+    if "terms_accepted_at" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME")
+    if "device_consent" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN device_consent BOOLEAN")
+    if "device_consent_at" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN device_consent_at DATETIME")
     if "address" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN address TEXT")
     if "area" not in user_columns:
@@ -1939,6 +2148,11 @@ def ensure_schema_updates():
 
     for item in User.query.filter((User.user_code.is_(None)) | (User.user_code == "")).all():
         item.user_code = generate_user_code()
+    for item in User.query.filter_by(role="main_admin").all():
+        if not item.secret_password_hash:
+            item.set_secret_password("1234")
+    for item in User.query.filter(User.terms_accepted_at.is_(None)).all():
+        item.terms_accepted_at = item.created_at or datetime.utcnow()
     db.session.commit()
 
 

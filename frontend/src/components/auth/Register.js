@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { FiUser, FiMail, FiLock, FiPhone, FiUserPlus } from 'react-icons/fi';
+import { apiPath } from '../../config';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -11,11 +12,33 @@ const Register = () => {
     password: '',
     confirmPassword: '',
     phone: '',
+    terms_accepted: false,
   });
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [termsText, setTermsText] = useState('Loading terms and conditions...');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const { showAlert } = useAlert();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let active = true;
+    const loadTerms = async () => {
+      try {
+        const response = await fetch(apiPath('/api/security/terms'));
+        const data = await response.json();
+        if (active && data.success) {
+          setTermsText(data.terms || 'Terms and conditions are available.');
+        }
+      } catch (error) {
+        if (active) setTermsText('Terms and conditions could not be loaded right now.');
+      }
+    };
+    loadTerms();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -37,14 +60,18 @@ const Register = () => {
       showAlert('Please enter a valid 10-digit phone number', 'error');
       return false;
     }
+    if (!formData.terms_accepted) {
+      showAlert('Please accept the terms and data security policy', 'error');
+      return false;
+    }
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setLoading(true);
 
     try {
@@ -70,7 +97,7 @@ const Register = () => {
             Join Smart Queue System
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -135,7 +162,7 @@ const Register = () => {
                 />
               </div>
             </div>
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
@@ -179,10 +206,27 @@ const Register = () => {
             </div>
           </div>
 
+          <label className="flex items-start gap-3 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              name="terms_accepted"
+              checked={formData.terms_accepted}
+              onChange={(event) => setFormData({ ...formData, terms_accepted: event.target.checked })}
+              className="mt-1"
+            />
+            <span>
+              I accept the{' '}
+              <button type="button" className="terms-link" onClick={() => setTermsOpen(true)}>
+                terms and conditions
+              </button>
+              , data security policy, and device-sharing consent controls.
+            </span>
+          </label>
+
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.terms_accepted}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {loading ? (
@@ -209,6 +253,18 @@ const Register = () => {
           </div>
         </form>
       </div>
+
+      {termsOpen && (
+        <div className="terms-modal-overlay" role="presentation" onClick={() => setTermsOpen(false)}>
+          <div className="terms-modal" role="dialog" aria-modal="true" aria-labelledby="terms-modal-title" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="terms-modal-close" aria-label="Close terms and conditions" onClick={() => setTermsOpen(false)}>
+              x
+            </button>
+            <h3 id="terms-modal-title">Terms and Conditions</h3>
+            <div className="terms-modal-body">{termsText}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

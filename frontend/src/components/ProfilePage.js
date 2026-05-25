@@ -24,6 +24,10 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
     current_password: '',
     new_password: ''
   });
+  const [secretPasswordForm, setSecretPasswordForm] = useState({
+    current_secret_password: '',
+    new_secret_password: ''
+  });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [settingsBranches, setSettingsBranches] = useState([]);
@@ -179,11 +183,28 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
     }
   };
 
+  const changeSecretPassword = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    setError('');
+    const data = await api('/api/admin/secret/password', {
+      method: 'PUT',
+      body: JSON.stringify(secretPasswordForm)
+    });
+    if (data.success) {
+      setSecretPasswordForm({ current_secret_password: '', new_secret_password: '' });
+      setMessage('Secret password updated.');
+    } else {
+      setError(data.error || 'Secret password update failed.');
+    }
+  };
+
   const profileSections = [
     { id: 'account', label: 'Account Details' },
     ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'logo', label: 'App Logo' }] : []),
     ...(user.role === 'industry_admin' ? [{ id: 'industry-settings', label: 'Industry Settings' }] : []),
     { id: 'password', label: 'Change Password' },
+    ...(user.role === 'main_admin' ? [{ id: 'secret-password', label: 'Secret Password' }] : []),
     { id: 'session', label: 'Account Session' }
   ];
 
@@ -430,6 +451,33 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
             <button type="submit">Update Password</button>
           </div>
         </form>
+        )}
+
+        {activeSection === 'secret-password' && user.role === 'main_admin' && (
+          <form className="control-panel" onSubmit={changeSecretPassword}>
+            <h3>Secret Password</h3>
+            <p className="muted-text">This password unlocks the top-side Secret security section. Default is 1234 until changed.</p>
+            <div className="form-group">
+              <label>Current secret password</label>
+              <input
+                type="password"
+                value={secretPasswordForm.current_secret_password}
+                onChange={(event) => setSecretPasswordForm({ ...secretPasswordForm, current_secret_password: event.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>New secret password</label>
+              <input
+                type="password"
+                value={secretPasswordForm.new_secret_password}
+                onChange={(event) => setSecretPasswordForm({ ...secretPasswordForm, new_secret_password: event.target.value })}
+                minLength="4"
+                required
+              />
+            </div>
+            <button type="submit">Update Secret Password</button>
+          </form>
         )}
 
         {activeSection === 'session' && (

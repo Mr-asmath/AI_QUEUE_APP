@@ -10,6 +10,69 @@ import ResetPassword from './components/ResetPassword';
 import ProfilePage from './components/ProfilePage';
 import { apiPath } from './config';
 
+function collectDeviceDetails(user) {
+  return {
+    device_name: navigator.userAgentData?.platform || navigator.platform || 'Unknown device',
+    platform: navigator.platform || '',
+    browser: navigator.userAgent || '',
+    place: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown place',
+    account_name: user?.name || ''
+  };
+}
+
+function DeviceConsentPrompt({ user, onUserUpdate }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const sendConsent = async (allow) => {
+    setSaving(true);
+    setError('');
+    const details = collectDeviceDetails(user);
+    const submit = async (deviceDetails) => {
+      const response = await fetch(apiPath('/api/security/device-consent'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allow, device_details: deviceDetails })
+      });
+      const data = await response.json();
+      if (data.success) onUserUpdate(data.user);
+      else setError(data.error || 'Could not save device permission.');
+      setSaving(false);
+    };
+
+    if (allow && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => submit({
+          ...details,
+          place: `${details.place}; ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`
+        }),
+        () => submit(details),
+        { timeout: 5000, maximumAge: 300000 }
+      );
+      return;
+    }
+    submit(details);
+  };
+
+  return (
+    <div className="consent-overlay">
+      <section className="consent-dialog">
+        <h3>Device Details Permission</h3>
+        <p>
+          Terms are accepted for this account. Allow this app to share simple device details
+          such as account name, approximate place, browser, and device name with the main admin security table?
+        </p>
+        {error && <div className="error-message">{error}</div>}
+        <div className="button-row">
+          <button type="button" onClick={() => sendConsent(true)} disabled={saving}>Allow</button>
+          <button type="button" className="secondary-btn" onClick={() => sendConsent(false)} disabled={saving}>Do Not Allow</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function App() {
   const initialResetToken = new URLSearchParams(window.location.search).get('reset_token');
   const [currentView, setCurrentView] = useState(initialResetToken ? 'reset-password' : 'login');
@@ -109,6 +172,10 @@ function App() {
       )}
       
       <main className="app-main">
+        {user?.device_consent_required && (
+          <DeviceConsentPrompt user={user} onUserUpdate={handleUserUpdate} />
+        )}
+
         {currentView === 'reset-password' && (
           <ResetPassword
             token={resetToken}
