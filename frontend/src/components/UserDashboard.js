@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
+import { ExportMenu } from '../exportUtils';
 import { roleLabelsFor } from '../roleLabels';
 
 function UserDashboard({ user, onLogout }) {
@@ -118,6 +119,19 @@ function UserDashboard({ user, onLogout }) {
     }
   };
 
+  const emergencyToken = async (tokenId, action) => {
+    const data = await api(`/api/user/tokens/${tokenId}/emergency`, {
+      method: 'POST',
+      body: JSON.stringify({ action })
+    });
+    if (data.success) {
+      setMessage(action === 'request' ? `${data.token.token_code} emergency request sent.` : `${data.token.token_code} emergency request cancelled.`);
+      refresh();
+    } else {
+      setMessage(data.error || 'Emergency update failed.');
+    }
+  };
+
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
       setMessage('Location is not supported in this browser.');
@@ -158,6 +172,30 @@ function UserDashboard({ user, onLogout }) {
       )}
     </div>
   );
+
+  const tokenExportColumns = [
+    { label: 'Token', value: 'token_code' },
+    { label: 'Name', value: (item) => item.display_name || item.user_name },
+    { label: 'Place', value: (item) => `${item.industry_name} / ${item.branch_name}` },
+    { label: 'Status', value: 'status' },
+    { label: 'Emergency', value: (item) => item.emergency_accepted ? 'Accepted' : item.emergency_requested ? 'Requested' : 'No' },
+    { label: roleLabels.service_provider, value: (item) => item.provider_name || '-' },
+    { label: 'Valid minutes', value: (item) => Math.ceil(item.seconds_left / 60) },
+  ];
+  const suggestionExportColumns = [
+    { label: 'Token', value: 'token_code' },
+    { label: 'Suggestion', value: 'suggestion_text' },
+    { label: 'Provider', value: 'provider_name' },
+    { label: 'Total', value: (item) => item.aggregates?.total || 0 },
+    { label: 'Average', value: (item) => item.aggregates?.average || 0 },
+    { label: 'Count', value: (item) => item.aggregates?.count || 0 },
+  ];
+  const notificationExportColumns = [
+    { label: 'Message', value: 'message' },
+    { label: 'Type', value: 'type' },
+    { label: 'Read', value: (item) => item.is_read ? 'Yes' : 'No' },
+    { label: 'Time', value: (item) => new Date(item.created_at).toLocaleString() },
+  ];
 
   return (
     <div className="dashboard user-dashboard">
@@ -324,10 +362,18 @@ function UserDashboard({ user, onLogout }) {
       )}
 
       {activeTab === 'tokens' && (
-        <div className="table-responsive">
-          <table className="data-table">
+        <div className="data-container">
+          <div className="data-container-header">
+            <div>
+              <h3>My Tokens</h3>
+              <p>Active, cancelled, emergency, and completed token records.</p>
+            </div>
+            <ExportMenu title="My Tokens" filename="my-tokens" columns={tokenExportColumns} rows={tokens} />
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
             <thead>
-              <tr><th>Token</th><th>Name</th><th>Place</th><th>Status</th><th>{roleLabels.service_provider}</th><th>Valid For</th><th>Action</th></tr>
+              <tr><th>Token</th><th>Name</th><th>Place</th><th>Status</th><th>Emergency</th><th>{roleLabels.service_provider}</th><th>Valid For</th><th>Action</th></tr>
             </thead>
             <tbody>
               {tokens.map((token) => (
@@ -336,11 +382,22 @@ function UserDashboard({ user, onLogout }) {
                   <td>{token.display_name || token.user_name}</td>
                   <td>{token.industry_name} / {token.branch_name}</td>
                   <td><span className="badge badge-info">{token.status}</span></td>
+                  <td>
+                    {token.emergency_accepted ? <span className="badge badge-danger">Accepted</span> : token.emergency_requested ? <span className="badge badge-warning">Requested</span> : '-'}
+                  </td>
                   <td>{token.provider_name || '-'}</td>
                   <td>{Math.ceil(token.seconds_left / 60)} min</td>
                   <td>
                     {['requested', 'verified', 'customer_in', 'allocated'].includes(token.status) ? (
-                      <button className="danger-btn" onClick={() => cancelToken(token.token_id)}>Cancel</button>
+                      <div className="button-row">
+                        {['requested', 'verified'].includes(token.status) && !token.emergency_requested && (
+                          <button type="button" className="warning-btn" onClick={() => emergencyToken(token.token_id, 'request')}>Emergency</button>
+                        )}
+                        {['requested', 'verified'].includes(token.status) && token.emergency_requested && (
+                          <button type="button" className="secondary-btn" onClick={() => emergencyToken(token.token_id, 'cancel')}>Cancel Emergency</button>
+                        )}
+                        <button className="danger-btn" onClick={() => cancelToken(token.token_id)}>Cancel Token</button>
+                      </div>
                     ) : token.status === 'cancelled' ? (
                       <span className="cancelled-note">Token is cancelled</span>
                     ) : '-'}
@@ -348,31 +405,50 @@ function UserDashboard({ user, onLogout }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
 
       {activeTab === 'suggestions' && (
-        <div className="grid-list">
-          {suggestions.map((item) => (
-            <div className="record-card" key={item.id}>
-              <div className="record-title">{item.token_code}</div>
-              <p>{item.suggestion_text}</p>
-              <p>Total: {item.aggregates.total} | Average: {item.aggregates.average} | Count: {item.aggregates.count}</p>
-              <small>{item.provider_name}</small>
+        <div className="data-container">
+          <div className="data-container-header">
+            <div>
+              <h3>Suggestions</h3>
+              <p>Completed service suggestions and selected-item analysis.</p>
             </div>
-          ))}
+            <ExportMenu title="Suggestions" filename="suggestions" columns={suggestionExportColumns} rows={suggestions} />
+          </div>
+          <div className="grid-list">
+            {suggestions.map((item) => (
+              <div className="record-card" key={item.id}>
+                <div className="record-title">{item.token_code}</div>
+                <p>{item.suggestion_text}</p>
+                <p>Total: {item.aggregates.total} | Average: {item.aggregates.average} | Count: {item.aggregates.count}</p>
+                <small>{item.provider_name}</small>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {activeTab === 'notifications' && (
-        <div className="notifications-list">
-          {notifications.map((item) => (
-            <div className={`notification-card ${!item.is_read ? 'unread' : ''}`} key={item.id}>
-              <div className="notification-message">{item.message}</div>
-              <div className="notification-time">{new Date(item.created_at).toLocaleString()}</div>
+        <div className="data-container">
+          <div className="data-container-header">
+            <div>
+              <h3>Notifications</h3>
+              <p>Queue updates, cancellation notices, and service messages.</p>
             </div>
-          ))}
+            <ExportMenu title="Notifications" filename="notifications" columns={notificationExportColumns} rows={notifications} />
+          </div>
+          <div className="notifications-list">
+            {notifications.map((item) => (
+              <div className={`notification-card ${!item.is_read ? 'unread' : ''}`} key={item.id}>
+                <div className="notification-message">{item.message}</div>
+                <div className="notification-time">{new Date(item.created_at).toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

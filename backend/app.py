@@ -16,7 +16,7 @@ from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
-from sqlalchemy import inspect
+from sqlalchemy import case, inspect
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -182,6 +182,26 @@ class DeviceAudit(db.Model):
     user = db.relationship("User", foreign_keys=[user_id])
 
 
+class EventLog(db.Model):
+    __tablename__ = "event_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user_name = db.Column(db.String(160))
+    user_role = db.Column(db.String(40))
+    industry_id = db.Column(db.Integer, db.ForeignKey("industries.id"))
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"))
+    token_id = db.Column(db.Integer, db.ForeignKey("tokens.id"))
+    event_type = db.Column(db.String(80), nullable=False)
+    message = db.Column(db.String(700), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+    industry = db.relationship("Industry", foreign_keys=[industry_id])
+    branch = db.relationship("Branch", foreign_keys=[branch_id])
+    token = db.relationship("Token", foreign_keys=[token_id])
+
+
 class PasswordResetToken(db.Model):
     __tablename__ = "password_reset_tokens"
 
@@ -237,6 +257,10 @@ class Token(db.Model):
     name_mode = db.Column(db.String(30), default="default")
     duplicate_key = db.Column(db.String(255), index=True)
     ai_suggestion = db.Column(db.Text)
+    emergency_requested = db.Column(db.Boolean, default=False)
+    emergency_accepted = db.Column(db.Boolean, default=False)
+    emergency_requested_at = db.Column(db.DateTime)
+    emergency_accepted_at = db.Column(db.DateTime)
     expires_at = db.Column(db.DateTime, nullable=False)
     reminder_sent_at = db.Column(db.DateTime)
     verified_at = db.Column(db.DateTime)
@@ -420,6 +444,22 @@ def create_notification(user_id, message, notification_type, token_id=None):
             token_id=token_id,
             message=message,
             type=notification_type,
+        )
+    )
+
+
+def record_event(event_type, message, user=None, token=None, industry_id=None, branch_id=None):
+    event_user = user or (token.user if token else current_user())
+    db.session.add(
+        EventLog(
+            user_id=event_user.id if event_user else None,
+            user_name=event_user.name if event_user else None,
+            user_role=event_user.role if event_user else None,
+            industry_id=industry_id or (token.industry_id if token else getattr(event_user, "industry_id", None)),
+            branch_id=branch_id or (token.branch_id if token else getattr(event_user, "branch_id", None)),
+            token_id=token.id if token else None,
+            event_type=event_type,
+            message=message,
         )
     )
 
@@ -641,9 +681,28 @@ def serialize_token(token):
         "provider_name": token.provider.name if token.provider else None,
         "provider_id": token.provider_id,
         "ai_suggestion": token.ai_suggestion,
+        "emergency_requested": bool(token.emergency_requested),
+        "emergency_accepted": bool(token.emergency_accepted),
+        "emergency_requested_at": token.emergency_requested_at.isoformat() + "Z" if token.emergency_requested_at else None,
+        "emergency_accepted_at": token.emergency_accepted_at.isoformat() + "Z" if token.emergency_accepted_at else None,
         "expires_at": token.expires_at.isoformat() + "Z",
         "seconds_left": seconds_left,
         "created_at": token.created_at.isoformat() + "Z",
+    }
+
+
+def serialize_event_log(item):
+    return {
+        "id": item.id,
+        "user_id": item.user_id,
+        "user_name": item.user_name or (item.user.name if item.user else "System"),
+        "user_role": item.user_role or (item.user.role if item.user else "system"),
+        "industry_name": item.industry.name if item.industry else None,
+        "branch_name": item.branch.name if item.branch else None,
+        "token_code": item.token.token_code if item.token else None,
+        "event_type": item.event_type,
+        "message": item.message,
+        "created_at": item.created_at.isoformat() + "Z",
     }
 
 
@@ -859,12 +918,17 @@ def login():
     session["user_id"] = user.id
     session["user_role"] = user.role
     record_device_audit(user, data.get("device_details") or {}, event_type="login")
+    record_event("login", f"{user.name} logged in.", user=user)
     db.session.commit()
     return jsonify({"success": True, "user": serialize_user(user)}), 200
 
 
 @app.route("/api/auth/logout", methods=["POST"])
 def logout():
+    user = current_user()
+    if user:
+        record_event("logout", f"{user.name} logged out.", user=user)
+        db.session.commit()
     session.clear()
     return jsonify({"success": True}), 200
 
@@ -1262,6 +1326,31 @@ def admin_user_directory():
     ), 200
 
 
+@app.route("/api/admin/event-logs")
+@login_required
+@role_required("main_admin")
+def admin_event_logs():
+    query_text = (request.args.get("q") or "").strip().lower()
+    logs = EventLog.query.order_by(EventLog.created_at.desc()).limit(500).all()
+    if query_text:
+        logs = [
+            item for item in logs
+            if any(
+                query_text in str(value or "").lower()
+                for value in (
+                    item.user_name,
+                    item.user_role,
+                    item.event_type,
+                    item.message,
+                    item.industry.name if item.industry else "",
+                    item.branch.name if item.branch else "",
+                    item.token.token_code if item.token else "",
+                )
+            )
+        ]
+    return jsonify({"success": True, "logs": [serialize_event_log(item) for item in logs]}), 200
+
+
 @app.route("/api/industry/users/search")
 @login_required
 @role_required("industry_admin", "queue_operator", "service_provider")
@@ -1633,6 +1722,7 @@ def generate_token():
         "token_generated",
         token.id,
     )
+    record_event("token_generated", f"{user.name} generated token {token_code}.", user=user, token=token)
     db.session.commit()
     return jsonify(
         {
@@ -1698,7 +1788,12 @@ def operator_queue():
         providers_query = providers_query.filter_by(industry_id=user.industry_id)
     tokens = (
         query.filter(Token.status.in_(OPERATOR_VISIBLE_TOKEN_STATUSES))
-        .order_by(Token.created_at.asc())
+        .order_by(
+            case((Token.status.in_(("customer_in", "allocated")), 0), else_=1),
+            case((Token.emergency_accepted.is_(True), 0), else_=1),
+            Token.token_number.asc(),
+            Token.created_at.asc(),
+        )
         .all()
     )
     providers = providers_query.order_by(User.name).all()
@@ -1783,6 +1878,7 @@ def operator_token_action(token_id):
         token.operator_id = user.id
         token.verified_at = datetime.utcnow()
         create_notification(token.user_id, f"{token.token_code} verified. Please be ready.", "token_verified", token.id)
+        record_event("token_verified", f"{token.token_code} verified by {user.name}.", user=user, token=token)
     elif action == "customer_in":
         if token.status not in ("requested", "verified"):
             return jsonify({"success": False, "error": "Customer entry is only allowed before allocation"}), 400
@@ -1791,6 +1887,7 @@ def operator_token_action(token_id):
         token.customer_in_at = datetime.utcnow()
         token.branch.current_token_number = max(token.branch.current_token_number, token.token_number)
         create_notification(token.user_id, f"{token.token_code} customer entry confirmed.", "customer_in", token.id)
+        record_event("customer_in", f"{token.token_code} marked customer in by {user.name}.", user=user, token=token)
     elif action == "allocate":
         if token.status != "customer_in":
             return jsonify({"success": False, "error": "Mark customer in before allocating a provider"}), 400
@@ -1801,16 +1898,40 @@ def operator_token_action(token_id):
         token.provider_id = provider.id
         token.operator_id = user.id
         create_notification(token.user_id, f"{token.token_code} allocated to {provider.name}.", "provider_allocated", token.id)
+        record_event("provider_allocated", f"{token.token_code} allocated to {provider.name} by {user.name}.", user=user, token=token)
     elif action == "reject":
         token.status = "rejected"
+        token.emergency_requested = False
+        token.emergency_accepted = False
         token.completed_at = datetime.utcnow()
         create_notification(token.user_id, f"{token.token_code} was rejected by queue control.", "token_rejected", token.id)
+        record_event("token_rejected", f"{token.token_code} rejected by {user.name}.", user=user, token=token)
     elif action == "cancel":
         token.status = "cancelled"
+        token.emergency_requested = False
+        token.emergency_accepted = False
         token.completed_at = datetime.utcnow()
         create_notification(token.user_id, f"{token.token_code} is cancelled.", "token_cancelled", token.id)
         if token.provider_id:
             create_notification(token.provider_id, f"{token.token_code} is cancelled.", "token_cancelled", token.id)
+        record_event("token_cancelled", f"{token.token_code} cancelled by {user.name}.", user=user, token=token)
+    elif action == "accept_emergency":
+        if not token.emergency_requested:
+            return jsonify({"success": False, "error": "Emergency was not requested for this token"}), 400
+        if token.status not in ("requested", "verified"):
+            return jsonify({"success": False, "error": "Emergency can only reorder waiting tokens"}), 400
+        token.emergency_accepted = True
+        token.emergency_accepted_at = datetime.utcnow()
+        token.operator_id = user.id
+        create_notification(token.user_id, f"{token.token_code} emergency request accepted.", "emergency_accepted", token.id)
+        record_event("emergency_accepted", f"{token.token_code} emergency accepted by {user.name}.", user=user, token=token)
+    elif action == "cancel_emergency":
+        token.emergency_requested = False
+        token.emergency_accepted = False
+        token.emergency_requested_at = None
+        token.emergency_accepted_at = None
+        create_notification(token.user_id, f"{token.token_code} emergency request cancelled.", "emergency_cancelled", token.id)
+        record_event("emergency_cancelled", f"{token.token_code} emergency cancelled by {user.name}.", user=user, token=token)
     else:
         return jsonify({"success": False, "error": "Unknown token action"}), 400
 
@@ -1881,6 +2002,7 @@ def provider_complete(token_id):
     token.completed_at = datetime.utcnow()
     db.session.add(suggestion)
     create_notification(token.user_id, f"Service completed for {token.token_code}.", "service_completed", token.id)
+    record_event("service_completed", f"{token.token_code} completed by {user.name}.", user=user, token=token)
     db.session.commit()
     return jsonify(
         {
@@ -1914,12 +2036,52 @@ def cancel_my_token(token_id):
         return jsonify({"success": False, "error": f"Token is already {token.status}"}), 400
 
     token.status = "cancelled"
+    token.emergency_requested = False
+    token.emergency_accepted = False
     token.completed_at = datetime.utcnow()
     create_notification(user.id, f"{token.token_code} is cancelled.", "token_cancelled", token.id)
     for operator in User.query.filter_by(role="queue_operator", branch_id=token.branch_id).all():
         create_notification(operator.id, f"{token.token_code} is cancelled by the customer.", "token_cancelled", token.id)
     if token.provider_id:
         create_notification(token.provider_id, f"{token.token_code} is cancelled by the customer.", "token_cancelled", token.id)
+    record_event("token_cancelled", f"{user.name} cancelled token {token.token_code}.", user=user, token=token)
+    db.session.commit()
+    return jsonify({"success": True, "token": serialize_token(token)}), 200
+
+
+@app.route("/api/user/tokens/<int:token_id>/emergency", methods=["POST"])
+@login_required
+def emergency_my_token(token_id):
+    user = current_user()
+    data = request.get_json() or {}
+    action = data.get("action")
+    token = db.session.get(Token, token_id)
+    if not token or token.user_id != user.id:
+        return jsonify({"success": False, "error": "Token not found"}), 404
+    if token.status not in ("requested", "verified"):
+        return jsonify({"success": False, "error": "Emergency can only be requested before customer entry"}), 400
+
+    if action == "request":
+        token.emergency_requested = True
+        token.emergency_requested_at = datetime.utcnow()
+        token.emergency_accepted = False
+        token.emergency_accepted_at = None
+        create_notification(user.id, f"{token.token_code} emergency request sent to queue control.", "emergency_requested", token.id)
+        for operator in User.query.filter_by(role="queue_operator", branch_id=token.branch_id).all():
+            create_notification(operator.id, f"{token.token_code} has an emergency request.", "emergency_requested", token.id)
+        record_event("emergency_requested", f"{user.name} requested emergency for {token.token_code}.", user=user, token=token)
+    elif action == "cancel":
+        token.emergency_requested = False
+        token.emergency_accepted = False
+        token.emergency_requested_at = None
+        token.emergency_accepted_at = None
+        create_notification(user.id, f"{token.token_code} emergency request cancelled.", "emergency_cancelled", token.id)
+        for operator in User.query.filter_by(role="queue_operator", branch_id=token.branch_id).all():
+            create_notification(operator.id, f"{token.token_code} emergency request was cancelled by the customer.", "emergency_cancelled", token.id)
+        record_event("emergency_cancelled", f"{user.name} cancelled emergency for {token.token_code}.", user=user, token=token)
+    else:
+        return jsonify({"success": False, "error": "Unknown emergency action"}), 400
+
     db.session.commit()
     return jsonify({"success": True, "token": serialize_token(token)}), 200
 
@@ -2190,6 +2352,14 @@ def ensure_schema_updates():
         statements.append("ALTER TABLE tokens ADD COLUMN display_name VARCHAR(160)")
     if "name_mode" not in token_columns:
         statements.append("ALTER TABLE tokens ADD COLUMN name_mode VARCHAR(30) DEFAULT 'default'")
+    if "emergency_requested" not in token_columns:
+        statements.append("ALTER TABLE tokens ADD COLUMN emergency_requested BOOLEAN DEFAULT 0")
+    if "emergency_accepted" not in token_columns:
+        statements.append("ALTER TABLE tokens ADD COLUMN emergency_accepted BOOLEAN DEFAULT 0")
+    if "emergency_requested_at" not in token_columns:
+        statements.append("ALTER TABLE tokens ADD COLUMN emergency_requested_at DATETIME")
+    if "emergency_accepted_at" not in token_columns:
+        statements.append("ALTER TABLE tokens ADD COLUMN emergency_accepted_at DATETIME")
     if "logo_url" not in industry_columns:
         statements.append("ALTER TABLE industries ADD COLUMN logo_url TEXT")
     if "logo_preset" not in industry_columns:

@@ -1692,6 +1692,16 @@ textarea,
   background: #8f1d14;
 }
 
+.warning-btn {
+  background: #f59e0b;
+  color: white;
+  border: none;
+}
+
+.warning-btn:hover:not(:disabled) {
+  background: #d97706;
+}
+
 .details-list {
   display: grid;
   gap: 6px;
@@ -2275,6 +2285,70 @@ textarea,
 .table-responsive {
   overflow-x: auto;
   margin-top: 20px;
+}
+
+.data-container {
+  display: grid;
+  gap: 14px;
+}
+
+.data-container-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.data-container-header h3 {
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+
+.data-container-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.export-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.export-menu summary {
+  list-style: none;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.export-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.export-menu div {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 10;
+  display: grid;
+  min-width: 130px;
+  gap: 6px;
+  padding: 8px;
+  background: white;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+}
+
+.export-menu button {
+  width: 100%;
+  padding: 8px 10px;
 }
 
 .data-table {

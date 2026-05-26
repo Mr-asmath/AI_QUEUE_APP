@@ -105,6 +105,7 @@ function DoctorDashboard({ user }) {
               <div className="patient-header">
                 <span className="token-badge">{token.token_code}</span>
                 <h4>{token.display_name || token.user_name}</h4>
+                {token.emergency_accepted && <span className="badge badge-danger">Emergency</span>}
               </div>
               <p>{token.branch_name}</p>
               <div className="details-list">

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getLogoPreset, presetStyle } from '../visualPresets';
 import { apiPath } from '../config';
+import { ExportMenu } from '../exportUtils';
 import { roleLabelsFor } from '../roleLabels';
 
 const branchTypes = [
@@ -95,6 +96,7 @@ function AdminDashboard({ user, onHome }) {
   const [queue, setQueue] = useState([]);
   const [queueHistory, setQueueHistory] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [eventLogs, setEventLogs] = useState([]);
   const [secretDevices, setSecretDevices] = useState([]);
   const [secretUserLogs, setSecretUserLogs] = useState([]);
   const [securityInfo, setSecurityInfo] = useState(null);
@@ -167,6 +169,8 @@ function AdminDashboard({ user, onHome }) {
     if (user.role === 'main_admin') {
       const data = await api('/api/admin/access-requests');
       if (data.success) setRequests(data.requests);
+      const logData = await api('/api/admin/event-logs');
+      if (logData.success) setEventLogs(logData.logs || []);
     }
     if (['main_admin', 'industry_admin'].includes(user.role)) {
       const directoryData = await api('/api/admin/users/directory');
@@ -462,6 +466,7 @@ function AdminDashboard({ user, onHome }) {
   };
   const dashboardTabs = [
     ...(user.role === 'main_admin' ? [{ id: 'requests', label: 'Access Requests' }] : []),
+    ...(user.role === 'main_admin' ? [{ id: 'event-logs', label: 'Event Logs' }] : []),
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'user-management', label: 'User Management' }] : []),
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Reset Requests' }] : []),
     ...(user.role === 'industry_admin' ? [
@@ -528,6 +533,72 @@ function AdminDashboard({ user, onHome }) {
         item.details?.personal_details
       ].some((value) => String(value || '').toLowerCase().includes(normalizedUserSearch)))
     : visibleUsers;
+
+  const requestColumns = [
+    { label: 'Industry', value: 'industry_name' },
+    { label: 'Type', value: (item) => `${item.industry_type}${item.other_type_name ? ` / ${item.other_type_name}` : ''}` },
+    { label: 'Admin', value: 'admin_name' },
+    { label: 'Email', value: 'admin_email' },
+    { label: 'Status', value: 'status' },
+  ];
+  const resetColumns = [
+    { label: 'Requester', value: 'requester_name' },
+    { label: 'Email', value: 'requester_email' },
+    { label: 'Role', value: 'requester_role' },
+    { label: 'Status', value: 'status' },
+    { label: 'Created', value: (item) => new Date(item.created_at).toLocaleString() },
+  ];
+  const branchColumns = [
+    { label: 'Name', value: 'name' },
+    { label: 'Type', value: (item) => `${item.branch_type}${item.other_type_name ? ` / ${item.other_type_name}` : ''}` },
+    { label: 'Details', value: (item) => item.details || '-' },
+    { label: 'Address', value: (item) => formatAddressParts(item) || '-' },
+    { label: 'Fields', value: (item) => (item.user_schema || []).map((field) => `${field.key}:${field.type}`).join(', ') },
+  ];
+  const staffColumns = [
+    { label: 'Name', value: 'name' },
+    { label: 'Email', value: 'email' },
+    { label: 'Role', value: (item) => roleLabels[item.role] || item.role },
+    { label: 'Branch', value: (item) => item.branch_name || '-' },
+    { label: 'Phone', value: (item) => item.phone || '-' },
+    { label: 'Designation', value: (item) => item.designation || '-' },
+    { label: 'Address', value: (item) => formatAddressParts(item) || '-' },
+  ];
+  const userColumns = [
+    { label: 'User ID', value: 'user_code' },
+    { label: 'Name', value: 'name' },
+    { label: 'Email', value: 'email' },
+    { label: 'Role', value: (item) => roleLabels[item.role] || item.role },
+    { label: 'Company', value: (item) => item.company?.name || '-' },
+    { label: 'Branch', value: (item) => item.branch?.name || '-' },
+    { label: 'Phone', value: (item) => item.details?.phone || item.phone || '-' },
+    { label: 'Tokens', value: (item) => item.work?.token_count || 0 },
+  ];
+  const queueColumns = [
+    { label: 'Token', value: 'token_code' },
+    { label: 'User ID', value: 'user_code' },
+    { label: 'User', value: (item) => item.display_name || item.user_name },
+    { label: 'Branch', value: 'branch_name' },
+    { label: 'Status', value: 'status' },
+    { label: 'Emergency', value: (item) => item.emergency_accepted ? 'Accepted' : item.emergency_requested ? 'Requested' : 'No' },
+    { label: roleLabels.service_provider, value: (item) => item.provider_name || '-' },
+  ];
+  const historyColumns = [
+    ...queueColumns,
+    { label: 'Created', value: (item) => new Date(item.created_at).toLocaleString() },
+    { label: 'Details', value: (item) => Object.entries(item.details || {}).map(([key, value]) => `${key}: ${value}`).join(', ') },
+    { label: 'Suggestion', value: (item) => item.ai_suggestion || '-' },
+  ];
+  const eventLogColumns = [
+    { label: 'Time', value: (item) => new Date(item.created_at).toLocaleString() },
+    { label: 'Event', value: 'event_type' },
+    { label: 'User', value: 'user_name' },
+    { label: 'Role', value: 'user_role' },
+    { label: 'Industry', value: (item) => item.industry_name || '-' },
+    { label: 'Branch', value: (item) => item.branch_name || '-' },
+    { label: 'Token', value: (item) => item.token_code || '-' },
+    { label: 'Message', value: 'message' },
+  ];
 
   return (
     <div className="dashboard admin-dashboard">
@@ -614,23 +685,79 @@ function AdminDashboard({ user, onHome }) {
       )}
 
       {activeTab === 'requests' && (
-        <div className="grid-list">
-          {requests.map((item) => (
-            <div className="record-card" key={item.id}>
-              <div className="record-title">{item.industry_name}</div>
-              <p>{item.industry_type}{item.other_type_name ? ` / ${item.other_type_name}` : ''}</p>
-              <p>{item.admin_name} - {item.admin_email}</p>
-              <p>{item.details}</p>
-              <span className={`badge ${item.status === 'pending' ? 'badge-warning' : item.status === 'approved' ? 'badge-success' : 'badge-danger'}`}>{item.status}</span>
-              {item.status === 'pending' && (
-                <div className="button-row">
-                  <button onClick={() => decide(item.id, 'approve')}>Approve</button>
-                  <button className="danger-btn" onClick={() => decide(item.id, 'reject')}>Reject</button>
-                </div>
-              )}
-              {item.generated_password && <code>Default password: {item.generated_password}</code>}
+        <div className="data-container">
+          <div className="data-container-header">
+            <div>
+              <h3>Access Requests</h3>
+              <p>Industry access approval and rejection records.</p>
             </div>
-          ))}
+            <ExportMenu title="Access Requests" filename="access-requests" columns={requestColumns} rows={requests} />
+          </div>
+          <div className="grid-list">
+            {requests.map((item) => (
+              <div className="record-card" key={item.id}>
+                <div className="record-title">{item.industry_name}</div>
+                <p>{item.industry_type}{item.other_type_name ? ` / ${item.other_type_name}` : ''}</p>
+                <p>{item.admin_name} - {item.admin_email}</p>
+                <p>{item.details}</p>
+                <span className={`badge ${item.status === 'pending' ? 'badge-warning' : item.status === 'approved' ? 'badge-success' : 'badge-danger'}`}>{item.status}</span>
+                {item.status === 'pending' && (
+                  <div className="button-row">
+                    <button onClick={() => decide(item.id, 'approve')}>Approve</button>
+                    <button className="danger-btn" onClick={() => decide(item.id, 'reject')}>Reject</button>
+                  </div>
+                )}
+                {item.generated_password && <code>Default password: {item.generated_password}</code>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'event-logs' && user.role === 'main_admin' && (
+        <div className="section-stack">
+          <div className="data-container-header">
+            <div>
+              <h3>User Event Logs</h3>
+              <p>Login, logout, token, cancellation, emergency, and service events from past to current.</p>
+            </div>
+            <ExportMenu title="User Event Logs" filename="user-event-logs" columns={eventLogColumns} rows={eventLogs} />
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Event</th>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Industry</th>
+                  <th>Branch</th>
+                  <th>Token</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventLogs.map((item) => (
+                  <tr key={item.id}>
+                    <td>{new Date(item.created_at).toLocaleString()}</td>
+                    <td><span className="badge badge-info">{item.event_type}</span></td>
+                    <td>{item.user_name}</td>
+                    <td>{item.user_role}</td>
+                    <td>{item.industry_name || '-'}</td>
+                    <td>{item.branch_name || '-'}</td>
+                    <td>{item.token_code || '-'}</td>
+                    <td>{item.message}</td>
+                  </tr>
+                ))}
+                {!eventLogs.length && (
+                  <tr>
+                    <td colSpan="8" className="empty-table-cell">No user events recorded yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -741,23 +868,32 @@ function AdminDashboard({ user, onHome }) {
       )}
 
       {activeTab === 'reset-requests' && (
-        <div className="grid-list">
-          {resetRequests.map((item) => (
-            <div className="record-card" key={item.id}>
-              <div className="record-title">{item.requester_name}</div>
-              <p>{item.requester_role.replace('_', ' ')}</p>
-              <p>{item.requester_email}</p>
-              <span className={`badge ${item.status === 'pending' ? 'badge-warning' : item.status === 'approved' ? 'badge-success' : 'badge-danger'}`}>{item.status}</span>
-              {item.status === 'pending' && (
-                <div className="button-row">
-                  <button onClick={() => decideReset(item.id, 'approve')}>Create Default Password</button>
-                  <button className="danger-btn" onClick={() => decideReset(item.id, 'reject')}>Reject</button>
-                </div>
-              )}
-              {item.generated_password && <code>Default password: {item.generated_password}</code>}
+        <div className="data-container">
+          <div className="data-container-header">
+            <div>
+              <h3>Reset Requests</h3>
+              <p>Default password approval history.</p>
             </div>
-          ))}
-          {!resetRequests.length && <div className="empty-state">No password reset requests.</div>}
+            <ExportMenu title="Reset Requests" filename="reset-requests" columns={resetColumns} rows={resetRequests} />
+          </div>
+          <div className="grid-list">
+            {resetRequests.map((item) => (
+              <div className="record-card" key={item.id}>
+                <div className="record-title">{item.requester_name}</div>
+                <p>{item.requester_role.replace('_', ' ')}</p>
+                <p>{item.requester_email}</p>
+                <span className={`badge ${item.status === 'pending' ? 'badge-warning' : item.status === 'approved' ? 'badge-success' : 'badge-danger'}`}>{item.status}</span>
+                {item.status === 'pending' && (
+                  <div className="button-row">
+                    <button onClick={() => decideReset(item.id, 'approve')}>Create Default Password</button>
+                    <button className="danger-btn" onClick={() => decideReset(item.id, 'reject')}>Reject</button>
+                  </div>
+                )}
+                {item.generated_password && <code>Default password: {item.generated_password}</code>}
+              </div>
+            ))}
+            {!resetRequests.length && <div className="empty-state">No password reset requests.</div>}
+          </div>
         </div>
       )}
 
@@ -768,6 +904,7 @@ function AdminDashboard({ user, onHome }) {
               <h3>User Management</h3>
               <p>View every account by type with company, branch, work, and personal details.</p>
             </div>
+            <ExportMenu title="User Management" filename="user-management" columns={userColumns} rows={searchedUsers} />
           </div>
 
           <div className="user-summary-grid">
@@ -1049,6 +1186,7 @@ function AdminDashboard({ user, onHome }) {
               <h3>Created Branches</h3>
               <p>Only branches created for this industry are shown here.</p>
             </div>
+            <ExportMenu title="Created Branches" filename="created-branches" columns={branchColumns} rows={branches} />
           </div>
           <div className="grid-list">
             {branches.map((branch) => (
@@ -1072,6 +1210,7 @@ function AdminDashboard({ user, onHome }) {
               <h3>Staff</h3>
               <p>{roleLabels.queue_operator} and {roleLabels.service_provider} accounts created for branches.</p>
             </div>
+            <ExportMenu title="Staff" filename="staff" columns={staffColumns} rows={staff} />
           </div>
           <div className="grid-list">
             {staff.map((item) => (
@@ -1129,8 +1268,14 @@ function AdminDashboard({ user, onHome }) {
 
       {activeTab === 'queue' && (
         <div className="section-stack queue-control-view">
+          <div className="data-container-header">
+            <div>
+              <h3>Current Queue</h3>
+              <p>Live queue with cancellation and emergency control.</p>
+            </div>
+            <ExportMenu title="Current Queue" filename="current-queue" columns={queueColumns} rows={queue} />
+          </div>
           <div className="table-responsive">
-            <h3>Current Queue</h3>
             <table className="data-table">
               <thead>
                 <tr>
@@ -1138,6 +1283,7 @@ function AdminDashboard({ user, onHome }) {
                   <th>User</th>
                   <th>Branch</th>
                   <th>Status</th>
+                  <th>Emergency</th>
                   <th>AI Suggestion</th>
                   <th>Action</th>
                 </tr>
@@ -1149,6 +1295,9 @@ function AdminDashboard({ user, onHome }) {
                     <td>{token.display_name || token.user_name}<br /><small>{token.user_email}</small></td>
                     <td>{token.branch_name}</td>
                     <td><span className="badge badge-info">{token.status}</span></td>
+                    <td>
+                      {token.emergency_accepted ? <span className="badge badge-danger">Accepted</span> : token.emergency_requested ? <span className="badge badge-warning">Requested</span> : '-'}
+                    </td>
                     <td>{token.ai_suggestion}</td>
                     <td>
                       {token.status === 'cancelled' ? (
@@ -1157,6 +1306,12 @@ function AdminDashboard({ user, onHome }) {
                         <div className="button-row">
                           {['requested', 'verified'].includes(token.status) && (
                             <button onClick={() => tokenAction(token.token_id, 'customer_in')}>Customer In</button>
+                          )}
+                          {['requested', 'verified'].includes(token.status) && token.emergency_requested && !token.emergency_accepted && (
+                            <button className="warning-btn" onClick={() => tokenAction(token.token_id, 'accept_emergency')}>Accept Emergency</button>
+                          )}
+                          {token.emergency_requested && (
+                            <button className="secondary-btn" onClick={() => tokenAction(token.token_id, 'cancel_emergency')}>Cancel Emergency</button>
                           )}
                           <select
                             disabled={token.status !== 'customer_in'}
@@ -1186,6 +1341,7 @@ function AdminDashboard({ user, onHome }) {
                 <h3>Queue History</h3>
                 <p>Search previous queue entries by user, token, branch, status, phone, email, or 6-digit ID.</p>
               </div>
+              <ExportMenu title="Queue History" filename="queue-history" columns={historyColumns} rows={queueHistory} />
             </div>
             <form className="history-filter-grid" onSubmit={(event) => { event.preventDefault(); loadQueueHistory(); }}>
               <div className="form-group">
@@ -1223,6 +1379,7 @@ function AdminDashboard({ user, onHome }) {
                     <th>User</th>
                     <th>Branch</th>
                     <th>Status</th>
+                    <th>Emergency</th>
                     <th>Created</th>
                     <th>{roleLabels.service_provider}</th>
                     <th>{roleLabels.queue_operator}</th>
@@ -1247,6 +1404,7 @@ function AdminDashboard({ user, onHome }) {
                       </td>
                       <td>{token.branch_name}</td>
                       <td><span className="badge badge-info">{token.status}</span></td>
+                      <td>{token.emergency_accepted ? 'Accepted' : token.emergency_requested ? 'Requested' : '-'}</td>
                       <td>{new Date(token.created_at).toLocaleString()}</td>
                       <td>{token.provider_name || '-'}</td>
                       <td>{token.operator_name || '-'}</td>
@@ -1260,7 +1418,7 @@ function AdminDashboard({ user, onHome }) {
                   ))}
                   {!queueHistory.length && (
                     <tr>
-                      <td colSpan="9" className="empty-table-cell">No queue history found.</td>
+                      <td colSpan="10" className="empty-table-cell">No queue history found.</td>
                     </tr>
                   )}
                 </tbody>
