@@ -36,7 +36,6 @@ function BottomNavigation({ items, activeId, onSelect, className = '' }) {
           type="button"
           key={item.id}
           className={activeId === item.id ? 'bottom-nav-item active' : 'bottom-nav-item'}
-          title={item.label}
           aria-label={item.label}
           aria-current={activeId === item.id ? 'page' : undefined}
           onClick={() => onSelect(item.id)}

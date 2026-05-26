@@ -1236,7 +1236,7 @@ textarea,
   border-radius: 0;
   box-shadow: none;
   cursor: pointer;
-  transition: none;
+  transition: color 0.2s ease;
 }
 
 .bottom-nav-item:last-child {
@@ -1246,13 +1246,14 @@ textarea,
 .bottom-nav-item .material-icons {
   font-size: 26px;
   line-height: 1;
-  transition: none;
+  transition: transform 0.24s ease, color 0.2s ease;
+  transform-origin: bottom center;
   transform: none;
 }
 
 .bottom-nav-item:hover .material-icons {
   color: #64748b;
-  transform: none;
+  transform: scale(1.7) translateY(-10px);
 }
 
 .bottom-nav-item.active {
@@ -1262,29 +1263,6 @@ textarea,
 
 .bottom-nav-item.active .material-icons {
   transform: none;
-}
-
-.bottom-nav-item::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 96%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #2563eb;
-  font-size: 10px;
-  font-weight: 800;
-  opacity: 0;
-  white-space: nowrap;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.bottom-nav-item:hover::after,
-.bottom-nav-item:focus-visible::after {
-  opacity: 1;
 }
 
 .bottom-nav-item.active::before {
