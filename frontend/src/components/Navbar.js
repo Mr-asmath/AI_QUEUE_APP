@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { getAvatarPreset, getLogoPreset, initialsFor, presetStyle } from '../visualPresets';
 import { roleLabelsFor } from '../roleLabels';
 
 function Navbar({ user, onNavigate }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const roleLabel = roleLabelsFor(user.industry_type)[user.role] || user.role;
   const avatarPreset = getAvatarPreset(user.avatar_preset);
   const logoPreset = getLogoPreset(user.industry_logo_preset);
 
   const navigate = (view) => {
-    setMenuOpen(false);
     onNavigate(view);
   };
 
@@ -23,24 +21,6 @@ function Navbar({ user, onNavigate }) {
         )}
         <span className="brand-name">{user.industry_name || 'AI Queue Automation'}</span>
       </button>
-
-      <div className="nav-dropdown">
-        <button
-          type="button"
-          className="nav-dropdown-toggle"
-          onClick={() => setMenuOpen((current) => !current)}
-          aria-expanded={menuOpen}
-          aria-label="Open menu"
-        >
-          Menu <span aria-hidden="true">v</span>
-        </button>
-        {menuOpen && (
-          <div className="nav-dropdown-menu">
-            <button type="button" onClick={() => navigate('dashboard')}>Home</button>
-            <button type="button" onClick={() => navigate('profile')}>Project Page</button>
-          </div>
-        )}
-      </div>
 
       <div className="nav-user">
         <span className="user-role">{roleLabel}</span>

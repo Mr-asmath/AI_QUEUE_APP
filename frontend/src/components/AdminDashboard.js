@@ -541,6 +541,7 @@ function AdminDashboard({ user, onHome }) {
     ...(user.role === 'main_admin' ? [{ id: 'event-logs', label: 'Event Logs' }] : []),
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'user-management', label: 'User Management' }] : []),
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Reset Requests' }] : []),
+    ...(user.role === 'main_admin' ? [{ id: 'secret', label: 'Secret' }] : []),
     ...(user.role === 'industry_admin' ? [
       { id: 'branches', label: 'Branches' },
       { id: 'staff', label: 'Staff' }
@@ -691,11 +692,6 @@ function AdminDashboard({ user, onHome }) {
           <p className="user-email">{user.industry_name || 'All industries'}</p>
         </div>
         <div className="stats-summary">
-          {user.role === 'main_admin' && (
-            <button type="button" className="secret-logo-btn" onClick={openSecretLock} aria-label="Open secret section">
-              Secret
-            </button>
-          )}
           <span className="stat">Queue: {queue.length}</span>
           <span className="stat">Branches: {branches.length}</span>
           <span className="stat">Staff: {staff.length}</span>
@@ -727,7 +723,17 @@ function AdminDashboard({ user, onHome }) {
         </div>
       )}
 
-      <BottomNavigation items={dashboardTabs} activeId={selectedTabValue} onSelect={setActiveTab} />
+      <BottomNavigation
+        items={dashboardTabs}
+        activeId={selectedTabValue}
+        onSelect={(tabId) => {
+          if (tabId === 'secret' && user.role === 'main_admin') {
+            openSecretLock();
+            return;
+          }
+          setActiveTab(tabId);
+        }}
+      />
 
       {user.role === 'industry_admin' && activeTab === 'branches' && (
         <button className="floating-action" onClick={() => setActiveTab('create-branch')} aria-label="Create branch">+</button>

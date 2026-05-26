@@ -80,35 +80,16 @@ function App() {
   const [resetToken, setResetToken] = useState(initialResetToken);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [pendingRequests, setPendingRequests] = useState(0);
   const [networkIssue, setNetworkIssue] = useState('');
 
   useEffect(() => {
-    const originalFetch = window.fetch.bind(window);
-    let mounted = true;
-
-    window.fetch = async (...args) => {
-      if (mounted) {
-        setPendingRequests((count) => count + 1);
-        setNetworkIssue('');
-      }
-      try {
-        const response = await originalFetch(...args);
-        if (mounted && response.status >= 500) {
-          setNetworkIssue('Network issue. Waiting for server response');
-        }
-        return response;
-      } catch (error) {
-        if (mounted) setNetworkIssue('Network issue. Check backend connection');
-        throw error;
-      } finally {
-        if (mounted) setPendingRequests((count) => Math.max(0, count - 1));
-      }
-    };
-
+    const updateOnlineState = () => setNetworkIssue(navigator.onLine ? '' : 'Network issue. Check connection');
+    window.addEventListener('online', updateOnlineState);
+    window.addEventListener('offline', updateOnlineState);
+    updateOnlineState();
     return () => {
-      mounted = false;
-      window.fetch = originalFetch;
+      window.removeEventListener('online', updateOnlineState);
+      window.removeEventListener('offline', updateOnlineState);
     };
   }, []);
 
@@ -136,6 +117,7 @@ function App() {
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setNetworkIssue('Network issue. Check backend connection');
     } finally {
       setLoading(false);
     }
@@ -240,7 +222,7 @@ function App() {
         )}
       </main>
 
-      {(pendingRequests > 0 || networkIssue) && (
+      {networkIssue && (
         <QueueLoader message={networkIssue || 'QUEUE LOADING'} overlay />
       )}
     </div>
