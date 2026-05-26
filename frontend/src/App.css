@@ -1204,14 +1204,14 @@ textarea,
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 90;
+  z-index: 120;
   width: min(94vw, 980px);
   min-height: 74px;
   padding: 0 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible;
+  overflow: hidden;
   background: #ffffff;
   border: 1px solid rgba(28, 172, 214, 0.22);
   border-radius: 22px;
@@ -1225,6 +1225,7 @@ textarea,
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
   position: relative;
   color: #55c9ff;
   background: transparent;
@@ -1243,22 +1244,22 @@ textarea,
 .bottom-nav-item .material-icons {
   font-size: 30px;
   line-height: 1;
-  transition: transform 0.25s ease, color 0.25s ease;
-  transform-origin: bottom center;
+  transition: color 0.2s ease;
+  transform: none;
 }
 
 .bottom-nav-item:hover .material-icons {
-  color: #12aef5;
-  transform: scale(1.55) translateY(-10px);
+  color: inherit;
+  transform: none;
 }
 
 .bottom-nav-item.active {
   color: #0aa9f2;
-  background: rgba(79, 195, 255, 0.12);
+  background: transparent;
 }
 
 .bottom-nav-item.active .material-icons {
-  transform: scale(1.25);
+  transform: none;
 }
 
 .bottom-nav-item::after {
@@ -1287,7 +1288,7 @@ textarea,
 .bottom-nav-item.active::before {
   content: "";
   position: absolute;
-  bottom: -5px;
+  bottom: 5px;
   left: 50%;
   transform: translateX(-50%);
   width: 52%;
@@ -2298,10 +2299,10 @@ textarea,
 .queue-loading-frame::before {
   content: "";
   position: absolute;
-  inset: -32%;
-  padding: 32%;
+  inset: 0;
+  padding: 4px;
   border-radius: inherit;
-  background: conic-gradient(transparent, transparent, transparent, #4fc3ff);
+  background: conic-gradient(from var(--loader-angle, 0deg), transparent, transparent, transparent, #4fc3ff);
   animation: borderRotate 1.6s linear infinite;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -2373,8 +2374,8 @@ textarea,
 }
 
 @keyframes borderRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from { --loader-angle: 0deg; }
+  to { --loader-angle: 360deg; }
 }
 
 @keyframes moveQueue {
@@ -2442,10 +2443,10 @@ textarea,
   }
 
   .app-bottom-nav {
-    justify-content: flex-start;
+    justify-content: center;
     overflow-x: auto;
     width: calc(100vw - 18px);
-    bottom: 10px;
+    bottom: 12px;
     min-height: 66px;
     border-radius: 18px;
   }
@@ -2455,8 +2456,8 @@ textarea,
   }
 
   .bottom-nav-item {
-    flex: 0 0 82px;
-    min-width: 82px;
+    flex: 1 0 64px;
+    min-width: 64px;
     height: 66px;
   }
 
