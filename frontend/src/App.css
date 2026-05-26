@@ -2298,18 +2298,20 @@ textarea,
 .queue-loading-frame::before {
   content: "";
   position: absolute;
-  width: 155%;
-  height: 155%;
+  inset: -32%;
+  padding: 32%;
+  border-radius: inherit;
   background: conic-gradient(transparent, transparent, transparent, #4fc3ff);
   animation: borderRotate 1.6s linear infinite;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
 .queue-loading-frame::after {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border-radius: 18px;
-  background: transparent;
+  content: none;
 }
 
 .queue-loader-area {
