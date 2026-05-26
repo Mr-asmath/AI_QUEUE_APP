@@ -1236,7 +1236,7 @@ textarea,
   border-radius: 0;
   box-shadow: none;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: none;
 }
 
 .bottom-nav-item:last-child {
@@ -1256,6 +1256,12 @@ textarea,
   transform: scale(1.7) translateY(-10px);
 }
 
+.bottom-nav-item:hover,
+.bottom-nav-item:focus-visible {
+  color: #64748b;
+  background: transparent;
+}
+
 .bottom-nav-item.active {
   color: #2563eb;
   background: transparent;
@@ -1263,6 +1269,33 @@ textarea,
 
 .bottom-nav-item.active .material-icons {
   transform: none;
+}
+
+.bottom-nav-label {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  max-width: 150px;
+  padding: 7px 10px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1e3a8a;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.13);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.bottom-nav-item:hover .bottom-nav-label,
+.bottom-nav-item:focus-visible .bottom-nav-label {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .bottom-nav-item.active::before {
