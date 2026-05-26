@@ -89,8 +89,10 @@ function AdminDashboard({ user, onHome }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [requests, setRequests] = useState([]);
   const [resetRequests, setResetRequests] = useState([]);
-  const [userDirectory, setUserDirectory] = useState({ users: [], grouped: {}, summary: null });
+  const [userDirectory, setUserDirectory] = useState({ users: [], grouped: {}, industries: [], branches: [], summary: null });
   const [activeUserType, setActiveUserType] = useState('all');
+  const [managementView, setManagementView] = useState('users');
+  const [adminEdit, setAdminEdit] = useState(null);
   const [userSearch, setUserSearch] = useState('');
   const [branches, setBranches] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -179,6 +181,8 @@ function AdminDashboard({ user, onHome }) {
         setUserDirectory({
           users: directoryData.users || [],
           grouped: directoryData.grouped || {},
+          industries: directoryData.industries || [],
+          branches: directoryData.branches || [],
           summary: directoryData.summary || null
         });
       }
@@ -238,6 +242,57 @@ function AdminDashboard({ user, onHome }) {
       refresh();
     } else {
       setMessage(data.error || 'Reset request failed.');
+    }
+  };
+
+  const startAdminEdit = (type, item) => {
+    setMessage('');
+    setAdminEdit({ type, values: { ...item } });
+  };
+
+  const updateAdminEdit = (key, value) => {
+    setAdminEdit((current) => ({
+      ...current,
+      values: { ...current.values, [key]: value }
+    }));
+  };
+
+  const saveAdminEdit = async (event) => {
+    event.preventDefault();
+    if (!adminEdit) return;
+    const endpoint = adminEdit.type === 'user'
+      ? `/api/admin/users/${adminEdit.values.id}`
+      : adminEdit.type === 'industry'
+        ? `/api/admin/industries/${adminEdit.values.id}`
+        : `/api/admin/branches/${adminEdit.values.id}`;
+    const data = await api(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(adminEdit.values)
+    });
+    if (data.success) {
+      setMessage(`${adminEdit.type} updated.`);
+      setAdminEdit(null);
+      refresh();
+    } else {
+      setMessage(data.error || 'Update failed.');
+    }
+  };
+
+  const deleteAdminItem = async (type, item) => {
+    const label = item.name || item.email || item.branch_name || type;
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    const endpoint = type === 'user'
+      ? `/api/admin/users/${item.id}`
+      : type === 'industry'
+        ? `/api/admin/industries/${item.id}`
+        : `/api/admin/branches/${item.id}`;
+    const data = await api(endpoint, { method: 'DELETE' });
+    if (data.success) {
+      setMessage(`${type} deleted.`);
+      if (adminEdit?.type === type && adminEdit.values.id === item.id) setAdminEdit(null);
+      refresh();
+    } else {
+      setMessage(data.error || 'Delete failed.');
     }
   };
 
@@ -344,42 +399,6 @@ function AdminDashboard({ user, onHome }) {
       refresh();
     } else {
       setMessage(data.error || 'Queue pause update failed.');
-    }
-  };
-
-  const updateBranchEmergency = async (branch, enabled) => {
-    const dashboard_config = {
-      ...(branch.dashboard_config || {}),
-      user: {
-        ...((branch.dashboard_config || {}).user || {}),
-        allow_emergency_queue: enabled
-      }
-    };
-    const payload = {
-      name: branch.name,
-      details: branch.details || '',
-      branch_type: branch.branch_type,
-      other_type_name: branch.other_type_name || '',
-      address: branch.address || '',
-      area: branch.area || '',
-      city: branch.city || '',
-      state: branch.state || '',
-      pincode: branch.pincode || '',
-      latitude: branch.latitude || '',
-      longitude: branch.longitude || '',
-      dashboard_config,
-      user_schema: branch.user_schema || []
-    };
-    const data = await api(`/api/industry/branches/${branch.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload)
-    });
-    if (data.success) {
-      setBranches(data.branches || branches.map((item) => (item.id === branch.id ? data.branch : item)));
-      setMessage(enabled ? 'Emergency requests enabled for this branch.' : 'Emergency requests disabled for this branch.');
-      refresh();
-    } else {
-      setMessage(data.error || 'Emergency setting update failed.');
     }
   };
 
@@ -522,7 +541,6 @@ function AdminDashboard({ user, onHome }) {
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'user-management', label: 'User Management' }] : []),
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Reset Requests' }] : []),
     ...(user.role === 'industry_admin' ? [
-      { id: 'industry-settings', label: 'Industry Settings' },
       { id: 'branches', label: 'Branches' },
       { id: 'staff', label: 'Staff' }
     ] : []),
@@ -975,6 +993,99 @@ function AdminDashboard({ user, onHome }) {
             </div>
           </div>
 
+          {user.role === 'main_admin' && (
+            <div className="user-type-tabs">
+              {[
+                ['users', 'Users'],
+                ['industries', 'Industries'],
+                ['branches', 'Branches']
+              ].map(([id, label]) => (
+                <button
+                  type="button"
+                  key={id}
+                  className={managementView === id ? 'active' : ''}
+                  onClick={() => {
+                    setManagementView(id);
+                    setAdminEdit(null);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {adminEdit && user.role === 'main_admin' && (
+            <form className="control-panel admin-edit-panel" onSubmit={saveAdminEdit}>
+              <div className="form-title-row">
+                <h3>Edit {adminEdit.type}</h3>
+                <button type="button" className="terminator-btn" onClick={() => setAdminEdit(null)} aria-label="Close edit">x</button>
+              </div>
+              {adminEdit.type === 'user' && (
+                <>
+                  <input value={adminEdit.values.name || ''} onChange={(event) => updateAdminEdit('name', event.target.value)} placeholder="Name" required />
+                  <input value={adminEdit.values.email || ''} onChange={(event) => updateAdminEdit('email', event.target.value)} placeholder="Email" type="email" required />
+                  <input value={adminEdit.values.phone || ''} onChange={(event) => updateAdminEdit('phone', event.target.value)} placeholder="Phone" />
+                  <select value={adminEdit.values.role || 'user'} onChange={(event) => updateAdminEdit('role', event.target.value)}>
+                    {['main_admin', 'industry_admin', 'queue_operator', 'service_provider', 'user'].map((role) => <option key={role} value={role}>{roleLabels[role] || role}</option>)}
+                  </select>
+                  <select value={adminEdit.values.industry_id || ''} onChange={(event) => updateAdminEdit('industry_id', event.target.value)}>
+                    <option value="">No industry</option>
+                    {(userDirectory.industries || []).map((industry) => <option key={industry.id} value={industry.id}>{industry.name}</option>)}
+                  </select>
+                  <select value={adminEdit.values.branch_id || ''} onChange={(event) => updateAdminEdit('branch_id', event.target.value)}>
+                    <option value="">No branch</option>
+                    {(userDirectory.branches || [])
+                      .filter((branch) => !adminEdit.values.industry_id || String(branch.industry_id) === String(adminEdit.values.industry_id))
+                      .map((branch) => <option key={branch.id} value={branch.id}>{branch.industry_name} - {branch.name}</option>)}
+                  </select>
+                  <input value={adminEdit.values.designation || ''} onChange={(event) => updateAdminEdit('designation', event.target.value)} placeholder="Designation" />
+                  <input value={adminEdit.values.emergency_contact || ''} onChange={(event) => updateAdminEdit('emergency_contact', event.target.value)} placeholder="Emergency contact" />
+                  <textarea value={adminEdit.values.personal_details || ''} onChange={(event) => updateAdminEdit('personal_details', event.target.value)} placeholder="Personal details" />
+                </>
+              )}
+              {adminEdit.type === 'industry' && (
+                <>
+                  <input value={adminEdit.values.name || ''} onChange={(event) => updateAdminEdit('name', event.target.value)} placeholder="Industry name" required />
+                  <select value={adminEdit.values.industry_type || 'hospital'} onChange={(event) => updateAdminEdit('industry_type', event.target.value)}>
+                    {branchTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                  </select>
+                  <input value={adminEdit.values.other_type_name || ''} onChange={(event) => updateAdminEdit('other_type_name', event.target.value)} placeholder="Other type name" />
+                  <textarea value={adminEdit.values.details || ''} onChange={(event) => updateAdminEdit('details', event.target.value)} placeholder="Details" />
+                  <textarea value={adminEdit.values.terms || ''} onChange={(event) => updateAdminEdit('terms', event.target.value)} placeholder="Terms" />
+                  <select value={adminEdit.values.admin_id || ''} onChange={(event) => updateAdminEdit('admin_id', event.target.value)}>
+                    <option value="">No admin</option>
+                    {(userDirectory.users || [])
+                      .filter((item) => item.role === 'industry_admin')
+                      .map((item) => <option key={item.id} value={item.id}>{item.name} - {item.email}</option>)}
+                  </select>
+                </>
+              )}
+              {adminEdit.type === 'branch' && (
+                <>
+                  <input value={adminEdit.values.name || ''} onChange={(event) => updateAdminEdit('name', event.target.value)} placeholder="Branch name" required />
+                  <textarea value={adminEdit.values.details || ''} onChange={(event) => updateAdminEdit('details', event.target.value)} placeholder="Details" />
+                  <select value={adminEdit.values.branch_type || 'hospital'} onChange={(event) => updateAdminEdit('branch_type', event.target.value)}>
+                    {branchTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                  </select>
+                  <input value={adminEdit.values.other_type_name || ''} onChange={(event) => updateAdminEdit('other_type_name', event.target.value)} placeholder="Other type name" />
+                  <div className="inline-row field-row">
+                    <input value={adminEdit.values.area || ''} onChange={(event) => updateAdminEdit('area', event.target.value)} placeholder="Area" />
+                    <input value={adminEdit.values.city || ''} onChange={(event) => updateAdminEdit('city', event.target.value)} placeholder="City" />
+                    <input value={adminEdit.values.state || ''} onChange={(event) => updateAdminEdit('state', event.target.value)} placeholder="State" />
+                    <input value={adminEdit.values.pincode || ''} onChange={(event) => updateAdminEdit('pincode', event.target.value)} placeholder="Pincode" />
+                  </div>
+                </>
+              )}
+              <div className="form-actions">
+                <button type="button" className="secondary-btn" onClick={() => setAdminEdit(null)}>Cancel</button>
+                <button type="submit">Save Changes</button>
+              </div>
+            </form>
+          )}
+
+          {managementView === 'users' && (
+            <>
           <div className="user-type-tabs">
             {userTypeTabs.map((tab) => (
               <button
@@ -1055,10 +1166,55 @@ function AdminDashboard({ user, onHome }) {
                     {item.details?.personal_details && <p>{item.details.personal_details}</p>}
                   </section>
                 </div>
+                {user.role === 'main_admin' && (
+                  <div className="button-row">
+                    <button type="button" className="secondary-btn" onClick={() => startAdminEdit('user', item)}>Edit</button>
+                    <button type="button" className="danger-btn" onClick={() => deleteAdminItem('user', item)}>Delete</button>
+                  </div>
+                )}
               </article>
             ))}
             {!searchedUsers.length && <div className="empty-state">No users found for this search.</div>}
           </div>
+            </>
+          )}
+
+          {managementView === 'industries' && user.role === 'main_admin' && (
+            <div className="grid-list">
+              {(userDirectory.industries || []).map((industry) => (
+                <article className="record-card" key={industry.id}>
+                  <div className="record-title">{industry.name}</div>
+                  <p>{industry.industry_type}{industry.other_type_name ? ` / ${industry.other_type_name}` : ''}</p>
+                  <p>{industry.details || 'No details added.'}</p>
+                  <small>Admin: {industry.admin_name || 'Not assigned'} | Branches: {industry.branch_count} | Users: {industry.user_count}</small>
+                  <div className="button-row">
+                    <button type="button" className="secondary-btn" onClick={() => startAdminEdit('industry', industry)}>Edit</button>
+                    <button type="button" className="danger-btn" onClick={() => deleteAdminItem('industry', industry)}>Delete</button>
+                  </div>
+                </article>
+              ))}
+              {!userDirectory.industries?.length && <div className="empty-state">No industries found.</div>}
+            </div>
+          )}
+
+          {managementView === 'branches' && user.role === 'main_admin' && (
+            <div className="grid-list">
+              {(userDirectory.branches || []).map((branch) => (
+                <article className="record-card" key={branch.id}>
+                  <div className="record-title">{branch.name}</div>
+                  <p>{branch.industry_name} - {branch.branch_type}{branch.other_type_name ? ` / ${branch.other_type_name}` : ''}</p>
+                  <p>{branch.details || 'No details added.'}</p>
+                  {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
+                  {branch.queue_paused && <small className="pause-note">Paused: {branch.queue_pause_reason || 'No reason saved'}</small>}
+                  <div className="button-row">
+                    <button type="button" className="secondary-btn" onClick={() => startAdminEdit('branch', branch)}>Edit</button>
+                    <button type="button" className="danger-btn" onClick={() => deleteAdminItem('branch', branch)}>Delete</button>
+                  </div>
+                </article>
+              ))}
+              {!userDirectory.branches?.length && <div className="empty-state">No branches found.</div>}
+            </div>
+          )}
         </div>
       )}
 
@@ -1233,39 +1389,6 @@ function AdminDashboard({ user, onHome }) {
         </div>
       )}
 
-      {activeTab === 'industry-settings' && user.role === 'industry_admin' && (
-        <div className="section-stack">
-          <div className="section-heading">
-            <div>
-              <h3>Industry Settings</h3>
-              <p>Control branch-level queue options from one place.</p>
-            </div>
-          </div>
-          <div className="grid-list">
-            {branches.map((branch) => (
-              <div className="record-card" key={`settings-${branch.id}`}>
-                <div className="record-title">{branch.name}</div>
-                <p>{branch.branch_type}{branch.other_type_name ? ` / ${branch.other_type_name}` : ''}</p>
-                {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
-                <div className="branch-control-row">
-                  <span className={branch.dashboard_config?.user?.allow_emergency_queue === false ? 'badge badge-info' : 'badge badge-success'}>
-                    Emergency {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'Off' : 'On'}
-                  </span>
-                  <button
-                    type="button"
-                    className={branch.dashboard_config?.user?.allow_emergency_queue === false ? '' : 'secondary-btn'}
-                    onClick={() => updateBranchEmergency(branch, branch.dashboard_config?.user?.allow_emergency_queue === false)}
-                  >
-                    Turn {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'On' : 'Off'}
-                  </button>
-                </div>
-              </div>
-            ))}
-            {!branches.length && <div className="empty-state">No branches created yet.</div>}
-          </div>
-        </div>
-      )}
-
       {activeTab === 'branches' && (
         <div className="section-stack">
           <div className="section-heading">
@@ -1283,13 +1406,6 @@ function AdminDashboard({ user, onHome }) {
                 <p>{branch.details || 'No branch details added.'}</p>
                 {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
                 <small>{branch.user_schema.map((field) => `${field.key}:${field.type}`).join(', ')}</small>
-                <div className="branch-control-row">
-                  {branch.queue_paused ? (
-                    <button type="button" onClick={() => pauseBranchQueue(branch.id, false)}>Resume Queue</button>
-                  ) : (
-                    <button type="button" className="warning-btn" onClick={() => pauseBranchQueue(branch.id, true)}>Pause Queue</button>
-                  )}
-                </div>
                 {branch.queue_paused && <small className="pause-note">Paused: {branch.queue_pause_reason || 'No reason saved'}</small>}
               </div>
             ))}
@@ -1402,10 +1518,12 @@ function AdminDashboard({ user, onHome }) {
                         <span className="cancelled-note">Token is cancelled</span>
                       ) : (
                         <div className="button-row">
-                          {token.queue_paused ? (
-                            <button type="button" onClick={() => pauseBranchQueue(token.branch_id, false)}>Resume Queue</button>
-                          ) : (
-                            <button type="button" className="warning-btn" onClick={() => pauseBranchQueue(token.branch_id, true)}>Pause Queue</button>
+                          {user.role === 'queue_operator' && (
+                            token.queue_paused ? (
+                              <button type="button" onClick={() => pauseBranchQueue(token.branch_id, false)}>Resume Queue</button>
+                            ) : (
+                              <button type="button" className="warning-btn" onClick={() => pauseBranchQueue(token.branch_id, true)}>Pause Queue</button>
+                            )
                           )}
                           {['requested', 'verified'].includes(token.status) && (
                             <button onClick={() => tokenAction(token.token_id, 'customer_in')}>Customer In</button>

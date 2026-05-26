@@ -48,7 +48,8 @@ const defaultBranchConfig = {
     display_cash_price: true,
     display_transactions: true,
     display_operator_contact: true,
-    display_provider_contact: true
+    display_provider_contact: true,
+    allow_emergency_queue: true
   },
   industry_settings: {
     token_name_mode: 'default',
@@ -740,7 +741,8 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
                   ['display_cash_price', 'Display cash price'],
                   ['display_transactions', 'Display transactions'],
                   ['display_operator_contact', 'Display operator contact'],
-                  ['display_provider_contact', `Display ${roleLabels.service_provider} contact`]
+                  ['display_provider_contact', `Display ${roleLabels.service_provider} contact`],
+                  ['allow_emergency_queue', 'Allow emergency requests']
                 ].map(([key, label]) => (
                   <label className="inline-check" key={key}>
                     <input type="checkbox" checked={Boolean(branchEditForm.dashboard_config.user[key])} onChange={() => toggleBranchConfig('user', key)} />

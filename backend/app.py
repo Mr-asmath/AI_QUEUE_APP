@@ -622,6 +622,30 @@ def serialize_branch(branch):
     }
 
 
+def serialize_admin_industry(industry):
+    branches = Branch.query.filter_by(industry_id=industry.id).count()
+    users = User.query.filter_by(industry_id=industry.id).count()
+    tokens = Token.query.filter_by(industry_id=industry.id).count()
+    return {
+        "id": industry.id,
+        "name": industry.name,
+        "industry_type": industry.industry_type,
+        "other_type_name": industry.other_type_name,
+        "details": industry.details,
+        "terms": industry.terms,
+        "branch_sharing_mode": industry.branch_sharing_mode,
+        "logo_url": industry.logo_url,
+        "logo_preset": industry.logo_preset or "logo-1",
+        "admin_id": industry.admin_id,
+        "admin_name": industry.admin.name if industry.admin else None,
+        "admin_email": industry.admin.email if industry.admin else None,
+        "branch_count": branches,
+        "user_count": users,
+        "token_count": tokens,
+        "created_at": industry.created_at.isoformat() + "Z" if industry.created_at else None,
+    }
+
+
 def serialize_admin_user_directory_entry(user):
     token_count = Token.query.filter_by(user_id=user.id).count()
     active_token_count = Token.query.filter(
@@ -1329,6 +1353,8 @@ def admin_user_directory():
             "success": True,
             "users": [serialize_admin_user_directory_entry(item) for item in users],
             "grouped": grouped,
+            "industries": [serialize_admin_industry(item) for item in industries],
+            "branches": [serialize_branch(item) for item in branches],
             "summary": {
                 "total_users": len(users),
                 "companies": len(industries),
@@ -1337,6 +1363,172 @@ def admin_user_directory():
             },
         }
     ), 200
+
+
+def update_user_from_admin(item, data):
+    email = (data.get("email") or item.email or "").strip().lower()
+    if not email:
+        return "Email is required"
+    duplicate = User.query.filter(User.email == email, User.id != item.id).first()
+    if duplicate:
+        return "Email already exists"
+    role = data.get("role") or item.role
+    if role not in ("main_admin", "industry_admin", "queue_operator", "service_provider", "user"):
+        return "Invalid role"
+    item.name = (data.get("name") or item.name or "").strip()
+    item.email = email
+    item.role = role
+    item.phone = data.get("phone")
+    item.address = data.get("address")
+    item.area = data.get("area")
+    item.city = data.get("city")
+    item.state = data.get("state")
+    item.pincode = data.get("pincode")
+    item.designation = data.get("designation")
+    item.emergency_contact = data.get("emergency_contact")
+    item.personal_details = data.get("personal_details")
+    item.industry_id = int(data["industry_id"]) if data.get("industry_id") not in (None, "") else None
+    item.branch_id = int(data["branch_id"]) if data.get("branch_id") not in (None, "") else None
+    if item.branch_id:
+        branch = db.session.get(Branch, item.branch_id)
+        if not branch:
+            return "Branch not found"
+        item.industry_id = branch.industry_id
+    if item.industry_id and not db.session.get(Industry, item.industry_id):
+        return "Industry not found"
+    return None
+
+
+def delete_user_data(item):
+    token_ids = [token.id for token in Token.query.filter_by(user_id=item.id).all()]
+    if token_ids:
+        Suggestion.query.filter(Suggestion.token_id.in_(token_ids)).delete(synchronize_session=False)
+        Notification.query.filter(Notification.token_id.in_(token_ids)).delete(synchronize_session=False)
+        EventLog.query.filter(EventLog.token_id.in_(token_ids)).update({"token_id": None}, synchronize_session=False)
+        Token.query.filter(Token.id.in_(token_ids)).delete(synchronize_session=False)
+    Token.query.filter_by(operator_id=item.id).update({"operator_id": None}, synchronize_session=False)
+    Token.query.filter_by(provider_id=item.id).update({"provider_id": None}, synchronize_session=False)
+    Suggestion.query.filter_by(provider_id=item.id).delete(synchronize_session=False)
+    Notification.query.filter_by(user_id=item.id).delete(synchronize_session=False)
+    PasswordResetToken.query.filter_by(user_id=item.id).delete(synchronize_session=False)
+    PasswordResetRequest.query.filter((PasswordResetRequest.user_id == item.id) | (PasswordResetRequest.admin_id == item.id)).delete(synchronize_session=False)
+    DeviceAudit.query.filter_by(user_id=item.id).delete(synchronize_session=False)
+    EventLog.query.filter_by(user_id=item.id).update({"user_id": None}, synchronize_session=False)
+    Branch.query.filter_by(queue_paused_by=item.id).update({"queue_paused_by": None}, synchronize_session=False)
+    Industry.query.filter_by(admin_id=item.id).update({"admin_id": None}, synchronize_session=False)
+    db.session.delete(item)
+
+
+def delete_branch_data(branch):
+    User.query.filter_by(branch_id=branch.id).update({"branch_id": None}, synchronize_session=False)
+    token_ids = [token.id for token in Token.query.filter_by(branch_id=branch.id).all()]
+    if token_ids:
+        Suggestion.query.filter(Suggestion.token_id.in_(token_ids)).delete(synchronize_session=False)
+        Notification.query.filter(Notification.token_id.in_(token_ids)).delete(synchronize_session=False)
+        EventLog.query.filter(EventLog.token_id.in_(token_ids)).update({"token_id": None}, synchronize_session=False)
+        Token.query.filter(Token.id.in_(token_ids)).delete(synchronize_session=False)
+    EventLog.query.filter_by(branch_id=branch.id).update({"branch_id": None}, synchronize_session=False)
+    db.session.delete(branch)
+
+
+@app.route("/api/admin/users/<int:user_id>", methods=["PUT", "DELETE"])
+@login_required
+@role_required("main_admin")
+def admin_manage_user(user_id):
+    admin = current_user()
+    item = db.session.get(User, user_id)
+    if not item:
+        return jsonify({"success": False, "error": "User not found"}), 404
+    if request.method == "DELETE":
+        if item.id == admin.id:
+            return jsonify({"success": False, "error": "You cannot delete your own account"}), 400
+        if item.role == "main_admin" and User.query.filter_by(role="main_admin").count() <= 1:
+            return jsonify({"success": False, "error": "At least one main admin is required"}), 400
+        item_name = item.name
+        delete_user_data(item)
+        record_event("admin_user_deleted", f"{admin.name} deleted user {item_name}.", user=admin)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    data = request.get_json() or {}
+    error = update_user_from_admin(item, data)
+    if error:
+        return jsonify({"success": False, "error": error}), 400
+    record_event("admin_user_updated", f"{admin.name} updated user {item.name}.", user=admin, industry_id=item.industry_id, branch_id=item.branch_id)
+    db.session.commit()
+    return jsonify({"success": True, "user": serialize_admin_user_directory_entry(item)}), 200
+
+
+@app.route("/api/admin/industries/<int:industry_id>", methods=["PUT", "DELETE"])
+@login_required
+@role_required("main_admin")
+def admin_manage_industry(industry_id):
+    admin = current_user()
+    industry = db.session.get(Industry, industry_id)
+    if not industry:
+        return jsonify({"success": False, "error": "Industry not found"}), 404
+    if request.method == "DELETE":
+        industry_name = industry.name
+        for branch in Branch.query.filter_by(industry_id=industry.id).all():
+            delete_branch_data(branch)
+        for item in User.query.filter_by(industry_id=industry.id).all():
+            if item.id != admin.id:
+                delete_user_data(item)
+        AccessRequest.query.filter_by(industry_id=industry.id).update({"industry_id": None}, synchronize_session=False)
+        EventLog.query.filter_by(industry_id=industry.id).update({"industry_id": None}, synchronize_session=False)
+        db.session.delete(industry)
+        record_event("admin_industry_deleted", f"{admin.name} deleted industry {industry_name}.", user=admin)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    data = request.get_json() or {}
+    if not (data.get("name") or "").strip():
+        return jsonify({"success": False, "error": "Industry name is required"}), 400
+    industry.name = data["name"].strip()
+    industry.industry_type = data.get("industry_type") or industry.industry_type
+    industry.other_type_name = data.get("other_type_name")
+    industry.details = data.get("details")
+    industry.terms = data.get("terms")
+    industry.branch_sharing_mode = data.get("branch_sharing_mode") or industry.branch_sharing_mode
+    industry.admin_id = int(data["admin_id"]) if data.get("admin_id") not in (None, "") else None
+    record_event("admin_industry_updated", f"{admin.name} updated industry {industry.name}.", user=admin, industry_id=industry.id)
+    db.session.commit()
+    return jsonify({"success": True, "industry": serialize_admin_industry(industry)}), 200
+
+
+@app.route("/api/admin/branches/<int:branch_id>", methods=["PUT", "DELETE"])
+@login_required
+@role_required("main_admin")
+def admin_manage_branch(branch_id):
+    admin = current_user()
+    branch = db.session.get(Branch, branch_id)
+    if not branch:
+        return jsonify({"success": False, "error": "Branch not found"}), 404
+    if request.method == "DELETE":
+        branch_name = branch.name
+        delete_branch_data(branch)
+        record_event("admin_branch_deleted", f"{admin.name} deleted branch {branch_name}.", user=admin)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    data = request.get_json() or {}
+    if not (data.get("name") or "").strip():
+        return jsonify({"success": False, "error": "Branch name is required"}), 400
+    branch.name = data["name"].strip()
+    branch.details = data.get("details")
+    branch.branch_type = data.get("branch_type") or branch.branch_type
+    branch.other_type_name = data.get("other_type_name")
+    branch.address = data.get("address")
+    branch.area = data.get("area")
+    branch.city = data.get("city")
+    branch.state = data.get("state")
+    branch.pincode = data.get("pincode")
+    branch.latitude = float(data["latitude"]) if data.get("latitude") not in (None, "") else None
+    branch.longitude = float(data["longitude"]) if data.get("longitude") not in (None, "") else None
+    if data.get("dashboard_config") is not None:
+        branch.dashboard_config_json = dumps(data.get("dashboard_config") or {})
+    if data.get("user_schema") is not None:
+        branch.user_schema_json = dumps(data.get("user_schema") or [])
+    record_event("admin_branch_updated", f"{admin.name} updated branch {branch.name}.", user=admin, branch_id=branch.id, industry_id=branch.industry_id)
+    db.session.commit()
+    return jsonify({"success": True, "branch": serialize_branch(branch)}), 200
 
 
 @app.route("/api/admin/event-logs")
@@ -1816,7 +2008,7 @@ def operator_queue():
 
 @app.route("/api/branch/<int:branch_id>/queue-pause", methods=["POST"])
 @login_required
-@role_required("queue_operator", "service_provider", "industry_admin", "main_admin")
+@role_required("queue_operator", "service_provider")
 def branch_queue_pause(branch_id):
     user = current_user()
     data = request.get_json() or {}
@@ -1824,7 +2016,7 @@ def branch_queue_pause(branch_id):
     branch = db.session.get(Branch, branch_id)
     if not branch or not require_same_industry(user, branch.industry_id):
         return jsonify({"success": False, "error": "Branch not found"}), 404
-    if user.role in ("queue_operator", "service_provider") and user.branch_id != branch.id:
+    if user.branch_id != branch.id:
         return jsonify({"success": False, "error": "You can pause only your assigned branch"}), 403
 
     active_tokens = Token.query.filter(Token.branch_id == branch.id, Token.status.in_(ACTIVE_TOKEN_STATUSES)).all()
