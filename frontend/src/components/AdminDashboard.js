@@ -69,7 +69,8 @@ const emptyBranch = {
       display_cash_price: true,
       display_transactions: true,
       display_operator_contact: true,
-      display_provider_contact: true
+      display_provider_contact: true,
+      allow_emergency_queue: true
     },
     industry_settings: {
       token_name_mode: 'default',
@@ -329,6 +330,57 @@ function AdminDashboard({ user, onHome }) {
     });
     if (data.success) refresh();
     else setMessage(data.error || 'Action failed');
+  };
+
+  const pauseBranchQueue = async (branchId, pause) => {
+    const reason = pause ? window.prompt('Enter the reason for pausing this queue') : '';
+    if (pause && !reason?.trim()) return;
+    const data = await api(`/api/branch/${branchId}/queue-pause`, {
+      method: 'POST',
+      body: JSON.stringify({ action: pause ? 'pause' : 'resume', reason })
+    });
+    if (data.success) {
+      setMessage(pause ? 'Queue paused and users notified.' : 'Queue resumed and users notified.');
+      refresh();
+    } else {
+      setMessage(data.error || 'Queue pause update failed.');
+    }
+  };
+
+  const updateBranchEmergency = async (branch, enabled) => {
+    const dashboard_config = {
+      ...(branch.dashboard_config || {}),
+      user: {
+        ...((branch.dashboard_config || {}).user || {}),
+        allow_emergency_queue: enabled
+      }
+    };
+    const payload = {
+      name: branch.name,
+      details: branch.details || '',
+      branch_type: branch.branch_type,
+      other_type_name: branch.other_type_name || '',
+      address: branch.address || '',
+      area: branch.area || '',
+      city: branch.city || '',
+      state: branch.state || '',
+      pincode: branch.pincode || '',
+      latitude: branch.latitude || '',
+      longitude: branch.longitude || '',
+      dashboard_config,
+      user_schema: branch.user_schema || []
+    };
+    const data = await api(`/api/industry/branches/${branch.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+    if (data.success) {
+      setBranches(data.branches || branches.map((item) => (item.id === branch.id ? data.branch : item)));
+      setMessage(enabled ? 'Emergency requests enabled for this branch.' : 'Emergency requests disabled for this branch.');
+      refresh();
+    } else {
+      setMessage(data.error || 'Emergency setting update failed.');
+    }
   };
 
   const loadQueueHistory = useCallback(async () => {
@@ -1135,7 +1187,8 @@ function AdminDashboard({ user, onHome }) {
                   ['display_cash_price', 'Display cash price'],
                   ['display_transactions', 'Display transactions'],
                   ['display_operator_contact', 'Display operator contact'],
-                  ['display_provider_contact', `Display ${roleLabels.service_provider} contact`]
+                  ['display_provider_contact', `Display ${roleLabels.service_provider} contact`],
+                  ['allow_emergency_queue', 'Allow emergency requests']
                 ],
                 ([key]) => branchForm.dashboard_config.user[key],
                 ([key]) => toggleUserOption(key)
@@ -1196,6 +1249,24 @@ function AdminDashboard({ user, onHome }) {
                 <p>{branch.details || 'No branch details added.'}</p>
                 {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
                 <small>{branch.user_schema.map((field) => `${field.key}:${field.type}`).join(', ')}</small>
+                <div className="branch-control-row">
+                  <span className={branch.dashboard_config?.user?.allow_emergency_queue === false ? 'badge badge-info' : 'badge badge-success'}>
+                    Emergency {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'Off' : 'On'}
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => updateBranchEmergency(branch, branch.dashboard_config?.user?.allow_emergency_queue === false)}
+                  >
+                    Turn {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'On' : 'Off'}
+                  </button>
+                  {branch.queue_paused ? (
+                    <button type="button" onClick={() => pauseBranchQueue(branch.id, false)}>Resume Queue</button>
+                  ) : (
+                    <button type="button" className="warning-btn" onClick={() => pauseBranchQueue(branch.id, true)}>Pause Queue</button>
+                  )}
+                </div>
+                {branch.queue_paused && <small className="pause-note">Paused: {branch.queue_pause_reason || 'No reason saved'}</small>}
               </div>
             ))}
             {!branches.length && <div className="empty-state">No branches created yet.</div>}
@@ -1294,7 +1365,10 @@ function AdminDashboard({ user, onHome }) {
                     <td><strong>{token.token_code}</strong><br /><small>ID: {token.user_code}</small></td>
                     <td>{token.display_name || token.user_name}<br /><small>{token.user_email}</small></td>
                     <td>{token.branch_name}</td>
-                    <td><span className="badge badge-info">{token.status}</span></td>
+                    <td>
+                      <span className="badge badge-info">{token.status}</span>
+                      {token.queue_paused && <><br /><span className="badge badge-warning">Paused</span></>}
+                    </td>
                     <td>
                       {token.emergency_accepted ? <span className="badge badge-danger">Accepted</span> : token.emergency_requested ? <span className="badge badge-warning">Requested</span> : '-'}
                     </td>
@@ -1304,13 +1378,18 @@ function AdminDashboard({ user, onHome }) {
                         <span className="cancelled-note">Token is cancelled</span>
                       ) : (
                         <div className="button-row">
+                          {token.queue_paused ? (
+                            <button type="button" onClick={() => pauseBranchQueue(token.branch_id, false)}>Resume Queue</button>
+                          ) : (
+                            <button type="button" className="warning-btn" onClick={() => pauseBranchQueue(token.branch_id, true)}>Pause Queue</button>
+                          )}
                           {['requested', 'verified'].includes(token.status) && (
                             <button onClick={() => tokenAction(token.token_id, 'customer_in')}>Customer In</button>
                           )}
-                          {['requested', 'verified'].includes(token.status) && token.emergency_requested && !token.emergency_accepted && (
+                          {token.branch_config?.user?.allow_emergency_queue !== false && ['requested', 'verified'].includes(token.status) && token.emergency_requested && !token.emergency_accepted && (
                             <button className="warning-btn" onClick={() => tokenAction(token.token_id, 'accept_emergency')}>Accept Emergency</button>
                           )}
-                          {token.emergency_requested && (
+                          {token.branch_config?.user?.allow_emergency_queue !== false && token.emergency_requested && (
                             <button className="secondary-btn" onClick={() => tokenAction(token.token_id, 'cancel_emergency')}>Cancel Emergency</button>
                           )}
                           <select

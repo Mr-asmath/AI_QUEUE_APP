@@ -1199,6 +1199,22 @@ textarea,
   background: #fef2f2;
 }
 
+.warning-message,
+.info-message {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.info-message {
+  border-color: #7dd3fc;
+  color: #075985;
+  background: #f0f9ff;
+}
+
 .split-layout {
   display: grid;
   grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
@@ -1690,6 +1706,24 @@ textarea,
 
 .danger-btn:hover:not(:disabled) {
   background: #8f1d14;
+}
+
+.branch-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.branch-control-row button {
+  padding: 8px 12px;
+}
+
+.pause-note {
+  display: block;
+  color: #92400e;
+  margin-top: 8px;
 }
 
 .warning-btn {

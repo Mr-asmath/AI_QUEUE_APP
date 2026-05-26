@@ -7,8 +7,6 @@ function UserDashboard({ user, onLogout }) {
   const [catalog, setCatalog] = useState({ industries: [], branches: [] });
   const [branchId, setBranchId] = useState('');
   const [details, setDetails] = useState({});
-  const [nameMode, setNameMode] = useState('default');
-  const [customerNames, setCustomerNames] = useState(['', '', '']);
   const [tokens, setTokens] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -59,6 +57,7 @@ function UserDashboard({ user, onLogout }) {
     return parts.length ? parts.join(', ') : branch.address;
   };
   const branchNameSettings = selectedBranch?.dashboard_config?.industry_settings || {};
+  const selectedBranchEmergencyEnabled = selectedBranch?.dashboard_config?.user?.allow_emergency_queue !== false;
   const roleLabels = roleLabelsFor(selectedBranch?.branch_type || user.industry_type, branchNameSettings.role_labels || {});
   const mappedBranches = catalog.branches.filter((branch) => branch.latitude && branch.longitude);
   const mapCenter = selectedBranch?.latitude && selectedBranch?.longitude
@@ -86,23 +85,16 @@ function UserDashboard({ user, onLogout }) {
   const estimatedMinutes = distanceKm ? Math.max(1, Math.round((distanceKm / 25) * 60)) : null;
   const reachTime = estimatedMinutes ? new Date(Date.now() + estimatedMinutes * 60000).toLocaleTimeString() : null;
 
-  useEffect(() => {
-    if (selectedBranch) {
-      setNameMode(branchNameSettings.token_name_mode === 'customer' ? 'customer' : 'default');
-    }
-  }, [selectedBranch, branchNameSettings.token_name_mode]);
-
   const submitToken = async (event) => {
     event.preventDefault();
     setMessage('');
     const data = await api('/api/token', {
       method: 'POST',
-      body: JSON.stringify({ branch_id: branchId, details, name_mode: nameMode, customer_names: customerNames })
+      body: JSON.stringify({ branch_id: branchId, details })
     });
     if (data.success) {
       setMessage(`Token generated: ${data.token.token_code}. It is valid until ${new Date(data.token.expires_at).toLocaleTimeString()}.`);
       setDetails({});
-      setCustomerNames(['', '', '']);
       refresh();
     } else {
       setMessage(data.error || 'Token generation failed.');
@@ -212,6 +204,11 @@ function UserDashboard({ user, onLogout }) {
       </div>
 
       {message && <div className="success-message">{message}</div>}
+      {queueStatus?.queue_paused && (
+        <div className="warning-message">
+          Queue paused: {queueStatus.queue_pause_reason || 'Paused by staff'}. Your order stays the same and will continue after resume.
+        </div>
+      )}
       {sessionExpired && (
         <div className="error-message">
           Session expired or backend is not connected. Please sign in again.
@@ -239,47 +236,8 @@ function UserDashboard({ user, onLogout }) {
                 ))}
               </select>
             </div>
-            {selectedBranch && (
-              <div className="checkbox-section">
-                <h4>Token name</h4>
-                <div className="radio-group">
-                  <label>
-                    <input
-                      type="radio"
-                      name="token-name-mode"
-                      checked={nameMode === 'default'}
-                      onChange={() => setNameMode('default')}
-                    />
-                    Default name
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="token-name-mode"
-                      checked={nameMode === 'customer'}
-                      onChange={() => setNameMode('customer')}
-                    />
-                    Customer name
-                  </label>
-                </div>
-                {nameMode === 'customer' && (
-                  <div className="customer-name-grid">
-                    {customerNames.slice(0, branchNameSettings.customer_name_slots || 3).map((value, index) => (
-                      <input
-                        key={`customer-name-${index}`}
-                        value={value}
-                        onChange={(event) => {
-                          const next = [...customerNames];
-                          next[index] = event.target.value;
-                          setCustomerNames(next);
-                        }}
-                        placeholder={`Customer name ${index + 1}`}
-                        required={index === 0}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+            {selectedBranch && !selectedBranchEmergencyEnabled && (
+              <div className="info-message">Emergency requests are off for this branch.</div>
             )}
             {selectedBranch && selectedBranch.user_schema.map(renderField)}
             <button type="submit" disabled={!branchId}>Generate Queue Token</button>
@@ -390,10 +348,10 @@ function UserDashboard({ user, onLogout }) {
                   <td>
                     {['requested', 'verified', 'customer_in', 'allocated'].includes(token.status) ? (
                       <div className="button-row">
-                        {['requested', 'verified'].includes(token.status) && !token.emergency_requested && (
+                        {token.branch_config?.user?.allow_emergency_queue !== false && ['requested', 'verified'].includes(token.status) && !token.emergency_requested && (
                           <button type="button" className="warning-btn" onClick={() => emergencyToken(token.token_id, 'request')}>Emergency</button>
                         )}
-                        {['requested', 'verified'].includes(token.status) && token.emergency_requested && (
+                        {token.branch_config?.user?.allow_emergency_queue !== false && ['requested', 'verified'].includes(token.status) && token.emergency_requested && (
                           <button type="button" className="secondary-btn" onClick={() => emergencyToken(token.token_id, 'cancel')}>Cancel Emergency</button>
                         )}
                         <button className="danger-btn" onClick={() => cancelToken(token.token_id)}>Cancel Token</button>

@@ -41,6 +41,21 @@ function DoctorDashboard({ user }) {
     }
   };
 
+  const pauseBranchQueue = async (branchId, pause) => {
+    const reason = pause ? window.prompt('Enter the reason for pausing this queue') : '';
+    if (pause && !reason?.trim()) return;
+    const data = await api(`/api/branch/${branchId}/queue-pause`, {
+      method: 'POST',
+      body: JSON.stringify({ action: pause ? 'pause' : 'resume', reason })
+    });
+    if (data.success) {
+      setMessage(pause ? 'Queue paused and users notified.' : 'Queue resumed and users notified.');
+      refresh();
+    } else {
+      setMessage(data.error || 'Queue pause update failed.');
+    }
+  };
+
   const toggleItem = (tokenId, item) => {
     const current = selectedItems[tokenId] || [];
     const exists = current.some((entry) => entry.name === item.name);
@@ -106,8 +121,17 @@ function DoctorDashboard({ user }) {
                 <span className="token-badge">{token.token_code}</span>
                 <h4>{token.display_name || token.user_name}</h4>
                 {token.emergency_accepted && <span className="badge badge-danger">Emergency</span>}
+                {token.queue_paused && <span className="badge badge-warning">Paused</span>}
               </div>
               <p>{token.branch_name}</p>
+              <div className="branch-control-row">
+                {token.queue_paused ? (
+                  <button type="button" onClick={() => pauseBranchQueue(token.branch_id, false)}>Resume Queue</button>
+                ) : (
+                  <button type="button" className="warning-btn" onClick={() => pauseBranchQueue(token.branch_id, true)}>Pause Queue</button>
+                )}
+                {token.queue_paused && <small>Reason: {token.queue_pause_reason || 'Paused by staff'}</small>}
+              </div>
               <div className="details-list">
                 {Object.entries(token.details || {}).map(([key, value]) => (
                   <span key={key}><strong>{key}:</strong> {String(value)}</span>

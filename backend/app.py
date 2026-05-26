@@ -235,9 +235,14 @@ class Branch(db.Model):
     user_schema_json = db.Column(db.Text, default="[]")
     last_token_number = db.Column(db.Integer, default=0)
     current_token_number = db.Column(db.Integer, default=0)
+    queue_paused = db.Column(db.Boolean, default=False)
+    queue_pause_reason = db.Column(db.Text)
+    queue_paused_at = db.Column(db.DateTime)
+    queue_paused_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     industry = db.relationship("Industry")
+    paused_by_user = db.relationship("User", foreign_keys=[queue_paused_by])
 
 
 class Token(db.Model):
@@ -543,9 +548,11 @@ def record_device_audit(user, details=None, consent_allowed=None, event_type="us
 def branch_config(branch):
     config = as_json(branch.dashboard_config_json, {})
     config.setdefault("industry_settings", {})
-    config["industry_settings"].setdefault("token_name_mode", "default")
+    config["industry_settings"]["token_name_mode"] = "default"
     config["industry_settings"].setdefault("customer_name_slots", 3)
     config["industry_settings"].setdefault("role_labels", {})
+    config.setdefault("user", {})
+    config["user"].setdefault("allow_emergency_queue", True)
     return config
 
 
@@ -608,6 +615,10 @@ def serialize_branch(branch):
         "logo_preset": branch.industry.logo_preset or "logo-1",
         "dashboard_config": branch_config(branch),
         "user_schema": user_schema(branch),
+        "queue_paused": bool(branch.queue_paused),
+        "queue_pause_reason": branch.queue_pause_reason,
+        "queue_paused_at": branch.queue_paused_at.isoformat() + "Z" if branch.queue_paused_at else None,
+        "queue_paused_by_name": branch.paused_by_user.name if branch.paused_by_user else None,
     }
 
 
@@ -675,6 +686,8 @@ def serialize_token(token):
         "industry_name": token.industry.name,
         "branch_id": token.branch_id,
         "branch_name": token.branch.name,
+        "queue_paused": bool(token.branch.queue_paused),
+        "queue_pause_reason": token.branch.queue_pause_reason,
         "branch_config": branch_config(token.branch),
         "details": as_json(token.details_json, {}),
         "operator_name": token.operator.name if token.operator else None,
@@ -1659,18 +1672,8 @@ def generate_token():
         return jsonify({"success": False, "error": "Please select a valid place"}), 400
 
     details = data.get("details") or {}
-    name_mode = (data.get("name_mode") or branch_config(branch).get("industry_settings", {}).get("token_name_mode") or "default").strip()
-    customer_names = [
-        str(name or "").strip()
-        for name in (data.get("customer_names") or [])
-        if str(name or "").strip()
-    ][:3]
     display_name = user.name
-    if name_mode == "customer" and customer_names:
-        display_name = ", ".join(customer_names)
-        details = {**details, "customer_names": customer_names}
-    else:
-        name_mode = "default"
+    name_mode = "default"
     duplicate_key = f"{user.id}:{branch.industry_id}:{branch.id}:{normalize_details(details)}"
     existing = Token.query.filter(
         Token.user_id == user.id,
@@ -1752,6 +1755,8 @@ def queue_status():
                 "waiting_count": 0,
                 "estimated_waiting_time": 0,
                 "next_tokens": [],
+                "queue_paused": False,
+                "queue_pause_reason": None,
             }
         ), 200
 
@@ -1769,6 +1774,9 @@ def queue_status():
             "estimated_waiting_time": estimated_wait(branch.id),
             "next_tokens": [serialize_token(token) for token in next_tokens],
             "is_active": True,
+            "queue_paused": bool(branch.queue_paused),
+            "queue_pause_reason": branch.queue_pause_reason,
+            "queue_paused_by_name": branch.paused_by_user.name if branch.paused_by_user else None,
         }
     ), 200
 
@@ -1804,6 +1812,45 @@ def operator_queue():
             "providers": [serialize_user(provider) for provider in providers],
         }
     ), 200
+
+
+@app.route("/api/branch/<int:branch_id>/queue-pause", methods=["POST"])
+@login_required
+@role_required("queue_operator", "service_provider", "industry_admin", "main_admin")
+def branch_queue_pause(branch_id):
+    user = current_user()
+    data = request.get_json() or {}
+    action = data.get("action")
+    branch = db.session.get(Branch, branch_id)
+    if not branch or not require_same_industry(user, branch.industry_id):
+        return jsonify({"success": False, "error": "Branch not found"}), 404
+    if user.role in ("queue_operator", "service_provider") and user.branch_id != branch.id:
+        return jsonify({"success": False, "error": "You can pause only your assigned branch"}), 403
+
+    active_tokens = Token.query.filter(Token.branch_id == branch.id, Token.status.in_(ACTIVE_TOKEN_STATUSES)).all()
+    if action == "pause":
+        reason = (data.get("reason") or "").strip()
+        if not reason:
+            return jsonify({"success": False, "error": "Pause reason is required"}), 400
+        branch.queue_paused = True
+        branch.queue_pause_reason = reason
+        branch.queue_paused_at = datetime.utcnow()
+        branch.queue_paused_by = user.id
+        for token in active_tokens:
+            create_notification(token.user_id, f"Queue paused for {branch.name}. Reason: {reason}", "queue_paused", token.id)
+        record_event("queue_paused", f"{branch.name} queue paused by {user.name}. Reason: {reason}", user=user, branch_id=branch.id, industry_id=branch.industry_id)
+    elif action == "resume":
+        branch.queue_paused = False
+        branch.queue_pause_reason = None
+        branch.queue_paused_at = None
+        branch.queue_paused_by = None
+        for token in active_tokens:
+            create_notification(token.user_id, f"Queue resumed for {branch.name}. Your token order is unchanged.", "queue_resumed", token.id)
+        record_event("queue_resumed", f"{branch.name} queue resumed by {user.name}.", user=user, branch_id=branch.id, industry_id=branch.industry_id)
+    else:
+        return jsonify({"success": False, "error": "Unknown pause action"}), 400
+    db.session.commit()
+    return jsonify({"success": True, "branch": serialize_branch(branch)}), 200
 
 
 @app.route("/api/operator/queue-history")
@@ -1873,6 +1920,8 @@ def operator_token_action(token_id):
         return jsonify({"success": False, "error": "Token expired before verification"}), 400
 
     action = data.get("action")
+    if token.branch.queue_paused and action in ("verify", "customer_in", "allocate", "accept_emergency"):
+        return jsonify({"success": False, "error": f"Queue is paused. Reason: {token.branch.queue_pause_reason or 'Paused by staff'}"}), 400
     if action == "verify":
         token.status = "verified"
         token.operator_id = user.id
@@ -1916,6 +1965,8 @@ def operator_token_action(token_id):
             create_notification(token.provider_id, f"{token.token_code} is cancelled.", "token_cancelled", token.id)
         record_event("token_cancelled", f"{token.token_code} cancelled by {user.name}.", user=user, token=token)
     elif action == "accept_emergency":
+        if not branch_config(token.branch).get("user", {}).get("allow_emergency_queue", True):
+            return jsonify({"success": False, "error": "Emergency queue is disabled for this branch"}), 400
         if not token.emergency_requested:
             return jsonify({"success": False, "error": "Emergency was not requested for this token"}), 400
         if token.status not in ("requested", "verified"):
@@ -2060,6 +2111,8 @@ def emergency_my_token(token_id):
         return jsonify({"success": False, "error": "Token not found"}), 404
     if token.status not in ("requested", "verified"):
         return jsonify({"success": False, "error": "Emergency can only be requested before customer entry"}), 400
+    if not branch_config(token.branch).get("user", {}).get("allow_emergency_queue", True):
+        return jsonify({"success": False, "error": "Emergency queue is disabled for this branch"}), 400
 
     if action == "request":
         token.emergency_requested = True
@@ -2379,6 +2432,14 @@ def ensure_schema_updates():
         statements.append("ALTER TABLE branches ADD COLUMN latitude FLOAT")
     if "longitude" not in branch_columns:
         statements.append("ALTER TABLE branches ADD COLUMN longitude FLOAT")
+    if "queue_paused" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN queue_paused BOOLEAN DEFAULT 0")
+    if "queue_pause_reason" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN queue_pause_reason TEXT")
+    if "queue_paused_at" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN queue_paused_at DATETIME")
+    if "queue_paused_by" not in branch_columns:
+        statements.append("ALTER TABLE branches ADD COLUMN queue_paused_by INTEGER")
     device_columns = {column["name"] for column in inspector.get_columns("device_audits")} if inspector.has_table("device_audits") else set()
     if "event_type" not in device_columns:
         statements.append("ALTER TABLE device_audits ADD COLUMN event_type VARCHAR(40) DEFAULT 'consent'")
