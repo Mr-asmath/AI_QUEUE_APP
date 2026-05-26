@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
 import { roleLabelOptions, roleLabelsFor } from '../roleLabels';
+import BottomNavigation from './BottomNavigation';
 
 const branchTypes = [
   { value: 'hospital', label: 'Hospital' },
@@ -96,7 +97,7 @@ const hydrateBranchEditForm = (branch) => {
   };
 };
 
-function ProfilePage({ user, onUserUpdate, onLogout }) {
+function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
   const [activeSection, setActiveSection] = useState('account');
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
@@ -401,6 +402,7 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
   };
 
   const profileSections = [
+    { id: 'home', label: 'Home' },
     { id: 'account', label: 'Account Details' },
     ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'logo', label: 'App Logo' }] : []),
     ...(user.role === 'industry_admin' ? [{ id: 'industry-settings', label: 'Industry Settings' }] : []),
@@ -431,20 +433,20 @@ function ProfilePage({ user, onUserUpdate, onLogout }) {
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}
 
-      <div className="profile-shell">
-        <aside className="profile-side-nav">
-          {profileSections.map((section) => (
-            <button
-              type="button"
-              key={section.id}
-              className={activeSection === section.id ? 'active' : ''}
-              onClick={() => setActiveSection(section.id)}
-            >
-              {section.label}
-            </button>
-          ))}
-        </aside>
+      <BottomNavigation
+        items={profileSections}
+        activeId={activeSection}
+        onSelect={(sectionId) => {
+          if (sectionId === 'home') {
+            onHome?.();
+            return;
+          }
+          setActiveSection(sectionId);
+        }}
+        className="profile-bottom-nav"
+      />
 
+      <div className="profile-shell">
         <div className="profile-section-view">
         {activeSection === 'account' && (
           <form className="control-panel" onSubmit={saveProfile}>

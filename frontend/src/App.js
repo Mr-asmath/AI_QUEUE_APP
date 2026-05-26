@@ -8,6 +8,7 @@ import DoctorDashboard from './components/DoctorDashboard';
 import Navbar from './components/Navbar';
 import ResetPassword from './components/ResetPassword';
 import ProfilePage from './components/ProfilePage';
+import QueueLoader from './components/QueueLoader';
 import { apiPath } from './config';
 
 function collectDeviceDetails(user) {
@@ -79,6 +80,37 @@ function App() {
   const [resetToken, setResetToken] = useState(initialResetToken);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState(0);
+  const [networkIssue, setNetworkIssue] = useState('');
+
+  useEffect(() => {
+    const originalFetch = window.fetch.bind(window);
+    let mounted = true;
+
+    window.fetch = async (...args) => {
+      if (mounted) {
+        setPendingRequests((count) => count + 1);
+        setNetworkIssue('');
+      }
+      try {
+        const response = await originalFetch(...args);
+        if (mounted && response.status >= 500) {
+          setNetworkIssue('Network issue. Waiting for server response');
+        }
+        return response;
+      } catch (error) {
+        if (mounted) setNetworkIssue('Network issue. Check backend connection');
+        throw error;
+      } finally {
+        if (mounted) setPendingRequests((count) => Math.max(0, count - 1));
+      }
+    };
+
+    return () => {
+      mounted = false;
+      window.fetch = originalFetch;
+    };
+  }, []);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -138,12 +170,7 @@ function App() {
   };
 
   if (loading) {
-    return (
-      <div className="loading-screen">
-        <div className="loader"></div>
-        <p>Loading...</p>
-      </div>
-    );
+    return <QueueLoader message={networkIssue || 'QUEUE LOADING'} overlay />;
   }
 
   const renderDashboard = () => {
@@ -204,9 +231,18 @@ function App() {
         {currentView === 'dashboard' && renderDashboard()}
 
         {currentView === 'profile' && user && (
-          <ProfilePage user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />
+          <ProfilePage
+            user={user}
+            onUserUpdate={handleUserUpdate}
+            onLogout={handleLogout}
+            onHome={() => setCurrentView('dashboard')}
+          />
         )}
       </main>
+
+      {(pendingRequests > 0 || networkIssue) && (
+        <QueueLoader message={networkIssue || 'QUEUE LOADING'} overlay />
+      )}
     </div>
   );
 }

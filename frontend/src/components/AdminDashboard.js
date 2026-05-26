@@ -3,6 +3,7 @@ import { getLogoPreset, presetStyle } from '../visualPresets';
 import { apiPath } from '../config';
 import { ExportMenu } from '../exportUtils';
 import { roleLabelsFor } from '../roleLabels';
+import BottomNavigation from './BottomNavigation';
 
 const branchTypes = [
   { value: 'hospital', label: 'Hospital' },
@@ -726,27 +727,7 @@ function AdminDashboard({ user, onHome }) {
         </div>
       )}
 
-      <div className="dashboard-tabs">
-        {dashboardTabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={activeTab === tab.id ? 'active' : ''}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <select
-        className="dashboard-tab-select"
-        value={selectedTabValue}
-        onChange={(event) => setActiveTab(event.target.value)}
-        aria-label="Dashboard menu"
-      >
-        {dashboardTabs.map((tab) => (
-          <option key={tab.id} value={tab.id}>{tab.label}</option>
-        ))}
-      </select>
+      <BottomNavigation items={dashboardTabs} activeId={selectedTabValue} onSelect={setActiveTab} />
 
       {user.role === 'industry_admin' && activeTab === 'branches' && (
         <button className="floating-action" onClick={() => setActiveTab('create-branch')} aria-label="Create branch">+</button>

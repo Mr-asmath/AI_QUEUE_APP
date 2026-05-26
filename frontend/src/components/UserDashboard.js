@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
 import { ExportMenu } from '../exportUtils';
 import { roleLabelsFor } from '../roleLabels';
+import BottomNavigation from './BottomNavigation';
 
 function UserDashboard({ user, onLogout }) {
   const [catalog, setCatalog] = useState({ industries: [], branches: [] });
@@ -188,6 +189,12 @@ function UserDashboard({ user, onLogout }) {
     { label: 'Read', value: (item) => item.is_read ? 'Yes' : 'No' },
     { label: 'Time', value: (item) => new Date(item.created_at).toLocaleString() },
   ];
+  const userTabs = [
+    { id: 'new', label: 'Generate Token' },
+    { id: 'tokens', label: 'My Tokens' },
+    { id: 'suggestions', label: 'Suggestions' },
+    { id: 'notifications', label: 'Notifications' }
+  ];
 
   return (
     <div className="dashboard user-dashboard">
@@ -216,12 +223,7 @@ function UserDashboard({ user, onLogout }) {
         </div>
       )}
 
-      <div className="dashboard-tabs">
-        <button className={activeTab === 'new' ? 'active' : ''} onClick={() => setActiveTab('new')}>Generate Token</button>
-        <button className={activeTab === 'tokens' ? 'active' : ''} onClick={() => setActiveTab('tokens')}>My Tokens</button>
-        <button className={activeTab === 'suggestions' ? 'active' : ''} onClick={() => setActiveTab('suggestions')}>Suggestions</button>
-        <button className={activeTab === 'notifications' ? 'active' : ''} onClick={() => setActiveTab('notifications')}>Notifications</button>
-      </div>
+      <BottomNavigation items={userTabs} activeId={activeTab} onSelect={setActiveTab} />
 
       {activeTab === 'new' && (
         <div className="split-layout">

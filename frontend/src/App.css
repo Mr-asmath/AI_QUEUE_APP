@@ -20,7 +20,7 @@ body {
 .App {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 20px 20px 138px;
 }
 
 .app-main {
@@ -1199,6 +1199,104 @@ textarea,
   background: #fef2f2;
 }
 
+.app-bottom-nav {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  width: min(94vw, 980px);
+  min-height: 74px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background: #ffffff;
+  border: 1px solid rgba(28, 172, 214, 0.22);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(28, 172, 214, 0.18);
+}
+
+.bottom-nav-item {
+  flex: 1 1 0;
+  min-width: 76px;
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: #55c9ff;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid rgba(79, 195, 255, 0.22);
+  border-radius: 0;
+  box-shadow: none;
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease;
+}
+
+.bottom-nav-item:last-child {
+  border-right: 0;
+}
+
+.bottom-nav-item .material-icons {
+  font-size: 30px;
+  line-height: 1;
+  transition: transform 0.25s ease, color 0.25s ease;
+  transform-origin: bottom center;
+}
+
+.bottom-nav-item:hover .material-icons {
+  color: #12aef5;
+  transform: scale(1.55) translateY(-10px);
+}
+
+.bottom-nav-item.active {
+  color: #0aa9f2;
+  background: rgba(79, 195, 255, 0.12);
+}
+
+.bottom-nav-item.active .material-icons {
+  transform: scale(1.25);
+}
+
+.bottom-nav-item::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 96%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1eaaf1;
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.bottom-nav-item:hover::after,
+.bottom-nav-item:focus-visible::after {
+  opacity: 1;
+}
+
+.bottom-nav-item.active::before {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52%;
+  height: 4px;
+  border-radius: 20px;
+  background: #1eaaf1;
+  box-shadow: 0 0 10px rgba(30, 170, 241, 0.6);
+}
+
 .warning-message,
 .info-message {
   margin-bottom: 18px;
@@ -1519,7 +1617,7 @@ textarea,
 
 .profile-shell {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -2159,29 +2257,136 @@ textarea,
 }
 
 /* ===== LOADING SCREEN ===== */
-.loading-screen {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background: linear-gradient(145deg, #1e3a8a, #2563eb);
-  color: white;
+.queue-loader-overlay,
+.queue-loader-shell {
+  display: grid;
+  place-items: center;
 }
 
-.loader {
-  border: 3px solid rgba(255,255,255,0.2);
+.queue-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  pointer-events: none;
+  background: rgba(247, 250, 252, 0.42);
+}
+
+.queue-loader-shell {
+  min-height: 220px;
+}
+
+.queue-loader-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+}
+
+.queue-loading-frame {
+  width: 176px;
+  height: 138px;
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(28, 172, 214, 0.16);
+}
+
+.queue-loading-frame::before {
+  content: "";
+  position: absolute;
+  width: 155%;
+  height: 155%;
+  background: conic-gradient(transparent, transparent, transparent, #4fc3ff);
+  animation: borderRotate 1.6s linear infinite;
+}
+
+.queue-loading-frame::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.queue-loader-area {
+  position: relative;
+  z-index: 1;
+  width: 132px;
+  height: 84px;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.queue-loader-person {
+  position: absolute;
+  bottom: 8px;
+  width: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  animation: moveQueue 3s linear infinite;
+}
+
+.queue-loader-person:nth-child(1) { animation-delay: 0s; }
+.queue-loader-person:nth-child(2) { animation-delay: 0.6s; }
+.queue-loader-person:nth-child(3) { animation-delay: 1.2s; }
+.queue-loader-person:nth-child(4) { animation-delay: 1.8s; }
+.queue-loader-person:nth-child(5) { animation-delay: 2.4s; }
+
+.queue-loader-head {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border-top: 3px solid white;
-  width: 48px;
-  height: 48px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 24px;
+  background: #4fc3ff;
+  box-shadow: 0 0 12px rgba(79, 195, 255, 0.72);
+}
+
+.queue-loader-body {
+  width: 24px;
+  height: 32px;
+  margin-top: 4px;
+  border-radius: 12px 12px 8px 8px;
+  background: #4fc3ff;
+  box-shadow: 0 0 12px rgba(79, 195, 255, 0.42);
+}
+
+.queue-loading-text {
+  margin-top: 10px;
+  min-height: 18px;
+  color: #12aef5;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-align: center;
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes borderRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes moveQueue {
+  0% {
+    transform: translateX(132px) scale(0.8);
+    opacity: 0;
+  }
+  15%, 75% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-42px) scale(1);
+    opacity: 0;
+  }
 }
 
 /* ===== BADGES ===== */
@@ -2231,7 +2436,40 @@ textarea,
 
 @media (max-width: 768px) {
   .App {
-    padding: 16px;
+    padding: 16px 16px 112px;
+  }
+
+  .app-bottom-nav {
+    justify-content: flex-start;
+    overflow-x: auto;
+    width: calc(100vw - 18px);
+    bottom: 10px;
+    min-height: 66px;
+    border-radius: 18px;
+  }
+
+  .app-bottom-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bottom-nav-item {
+    flex: 0 0 82px;
+    min-width: 82px;
+    height: 66px;
+  }
+
+  .bottom-nav-item .material-icons {
+    font-size: 28px;
+  }
+
+  .queue-loading-frame {
+    width: 150px;
+    height: 118px;
+  }
+
+  .queue-loader-area {
+    width: 112px;
+    height: 72px;
   }
   
   .app-header {
