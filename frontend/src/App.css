@@ -1212,7 +1212,7 @@ textarea,
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   background: #ffffff;
   border: 1px solid rgba(28, 172, 214, 0.22);
   border-radius: 22px;
@@ -1252,14 +1252,16 @@ textarea,
 }
 
 .bottom-nav-item:hover .material-icons {
-  color: #64748b;
+  color: #4fc3ff;
   transform: scale(1.7) translateY(-10px);
 }
 
-.bottom-nav-item:hover,
+.bottom-nav-item:hover:not(:disabled),
 .bottom-nav-item:focus-visible {
   color: #64748b;
   background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 .bottom-nav-item.active {
@@ -1269,33 +1271,6 @@ textarea,
 
 .bottom-nav-item.active .material-icons {
   transform: none;
-}
-
-.bottom-nav-label {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  max-width: 150px;
-  padding: 7px 10px;
-  border: 1px solid rgba(37, 99, 235, 0.16);
-  border-radius: 10px;
-  background: #ffffff;
-  color: #1e3a8a;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.13);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.1;
-  opacity: 0;
-  pointer-events: none;
-  white-space: nowrap;
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.bottom-nav-item:hover .bottom-nav-label,
-.bottom-nav-item:focus-visible .bottom-nav-label {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }
 
 .bottom-nav-item.active::before {
@@ -2457,7 +2432,7 @@ textarea,
 
   .app-bottom-nav {
     justify-content: center;
-    overflow-x: auto;
+    overflow: visible;
     width: auto;
     max-width: calc(100vw - 24px);
     bottom: 12px;

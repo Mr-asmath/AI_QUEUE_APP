@@ -40,7 +40,6 @@ function BottomNavigation({ items, activeId, onSelect, className = '' }) {
           aria-current={activeId === item.id ? 'page' : undefined}
           onClick={() => onSelect(item.id)}
         >
-          <span className="bottom-nav-label" aria-hidden="true">{item.label}</span>
           <span className="material-icons" aria-hidden="true">{item.icon || fallbackIcons[item.id] || 'radio_button_checked'}</span>
         </button>
       ))}
