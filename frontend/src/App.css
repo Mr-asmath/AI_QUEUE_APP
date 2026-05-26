@@ -1205,9 +1205,10 @@ textarea,
   left: 50%;
   transform: translateX(-50%);
   z-index: 120;
-  width: min(94vw, 980px);
-  min-height: 74px;
-  padding: 0 8px;
+  width: auto;
+  max-width: calc(100vw - 30px);
+  min-height: 64px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1219,22 +1220,23 @@ textarea,
 }
 
 .bottom-nav-item {
-  flex: 1 1 0;
-  min-width: 76px;
-  height: 74px;
+  flex: 0 0 66px;
+  width: 66px;
+  min-width: 66px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   position: relative;
-  color: #55c9ff;
+  color: #64748b;
   background: transparent;
   border: 0;
   border-right: 1px solid rgba(79, 195, 255, 0.22);
   border-radius: 0;
   box-shadow: none;
   cursor: pointer;
-  transition: color 0.25s ease, background 0.25s ease;
+  transition: none;
 }
 
 .bottom-nav-item:last-child {
@@ -1242,19 +1244,19 @@ textarea,
 }
 
 .bottom-nav-item .material-icons {
-  font-size: 30px;
+  font-size: 26px;
   line-height: 1;
-  transition: color 0.2s ease;
+  transition: none;
   transform: none;
 }
 
 .bottom-nav-item:hover .material-icons {
-  color: inherit;
+  color: #64748b;
   transform: none;
 }
 
 .bottom-nav-item.active {
-  color: #0aa9f2;
+  color: #2563eb;
   background: transparent;
 }
 
@@ -1271,7 +1273,7 @@ textarea,
   max-width: 96%;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #1eaaf1;
+  color: #2563eb;
   font-size: 10px;
   font-weight: 800;
   opacity: 0;
@@ -1294,8 +1296,8 @@ textarea,
   width: 52%;
   height: 4px;
   border-radius: 20px;
-  background: #1eaaf1;
-  box-shadow: 0 0 10px rgba(30, 170, 241, 0.6);
+  background: #2563eb;
+  box-shadow: none;
 }
 
 .warning-message,
@@ -2445,9 +2447,10 @@ textarea,
   .app-bottom-nav {
     justify-content: center;
     overflow-x: auto;
-    width: calc(100vw - 18px);
+    width: auto;
+    max-width: calc(100vw - 24px);
     bottom: 12px;
-    min-height: 66px;
+    min-height: 62px;
     border-radius: 18px;
   }
 
@@ -2456,13 +2459,14 @@ textarea,
   }
 
   .bottom-nav-item {
-    flex: 1 0 64px;
-    min-width: 64px;
-    height: 66px;
+    flex: 0 0 58px;
+    width: 58px;
+    min-width: 58px;
+    height: 62px;
   }
 
   .bottom-nav-item .material-icons {
-    font-size: 28px;
+    font-size: 25px;
   }
 
   .queue-loading-frame {
