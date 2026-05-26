@@ -522,6 +522,7 @@ function AdminDashboard({ user, onHome }) {
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'user-management', label: 'User Management' }] : []),
     ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Reset Requests' }] : []),
     ...(user.role === 'industry_admin' ? [
+      { id: 'industry-settings', label: 'Industry Settings' },
       { id: 'branches', label: 'Branches' },
       { id: 'staff', label: 'Staff' }
     ] : []),
@@ -1232,6 +1233,39 @@ function AdminDashboard({ user, onHome }) {
         </div>
       )}
 
+      {activeTab === 'industry-settings' && user.role === 'industry_admin' && (
+        <div className="section-stack">
+          <div className="section-heading">
+            <div>
+              <h3>Industry Settings</h3>
+              <p>Control branch-level queue options from one place.</p>
+            </div>
+          </div>
+          <div className="grid-list">
+            {branches.map((branch) => (
+              <div className="record-card" key={`settings-${branch.id}`}>
+                <div className="record-title">{branch.name}</div>
+                <p>{branch.branch_type}{branch.other_type_name ? ` / ${branch.other_type_name}` : ''}</p>
+                {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
+                <div className="branch-control-row">
+                  <span className={branch.dashboard_config?.user?.allow_emergency_queue === false ? 'badge badge-info' : 'badge badge-success'}>
+                    Emergency {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'Off' : 'On'}
+                  </span>
+                  <button
+                    type="button"
+                    className={branch.dashboard_config?.user?.allow_emergency_queue === false ? '' : 'secondary-btn'}
+                    onClick={() => updateBranchEmergency(branch, branch.dashboard_config?.user?.allow_emergency_queue === false)}
+                  >
+                    Turn {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'On' : 'Off'}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {!branches.length && <div className="empty-state">No branches created yet.</div>}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'branches' && (
         <div className="section-stack">
           <div className="section-heading">
@@ -1250,16 +1284,6 @@ function AdminDashboard({ user, onHome }) {
                 {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
                 <small>{branch.user_schema.map((field) => `${field.key}:${field.type}`).join(', ')}</small>
                 <div className="branch-control-row">
-                  <span className={branch.dashboard_config?.user?.allow_emergency_queue === false ? 'badge badge-info' : 'badge badge-success'}>
-                    Emergency {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'Off' : 'On'}
-                  </span>
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={() => updateBranchEmergency(branch, branch.dashboard_config?.user?.allow_emergency_queue === false)}
-                  >
-                    Turn {branch.dashboard_config?.user?.allow_emergency_queue === false ? 'On' : 'Off'}
-                  </button>
                   {branch.queue_paused ? (
                     <button type="button" onClick={() => pauseBranchQueue(branch.id, false)}>Resume Queue</button>
                   ) : (
