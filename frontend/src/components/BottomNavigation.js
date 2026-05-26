@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 const fallbackIcons = {
   requests: 'vpn_key',
@@ -28,7 +29,7 @@ const fallbackIcons = {
 function BottomNavigation({ items, activeId, onSelect, className = '' }) {
   if (!items?.length) return null;
 
-  return (
+  const nav = (
     <nav className={`app-bottom-nav ${className}`} aria-label="Page menu">
       {items.map((item) => (
         <button
@@ -45,6 +46,8 @@ function BottomNavigation({ items, activeId, onSelect, className = '' }) {
       ))}
     </nav>
   );
+
+  return createPortal(nav, document.body);
 }
 
 export default BottomNavigation;

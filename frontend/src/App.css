@@ -2907,7 +2907,7 @@ textarea,
 /* Responsive adjustments */
 @media (max-width: 1180px) {
   .App {
-    padding: 16px;
+    padding: 16px 16px 126px;
   }
 
   .dashboard {
