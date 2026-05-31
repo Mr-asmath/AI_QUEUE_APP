@@ -130,7 +130,7 @@ function Register({ onRegister, onSwitchToLogin }) {
                 <button type="button" className="terms-link" onClick={() => setTermsOpen(true)}>
                   terms and conditions
                 </button>
-                , data security policy, and device-sharing consent controls.
+                and data security policy.
               </span>
             </label>
             <button type="submit" disabled={loading || !termsAccepted}>{loading ? 'Creating...' : 'Create User Account'}</button>

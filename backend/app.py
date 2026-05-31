@@ -11,6 +11,7 @@ import urllib.request
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from functools import wraps
+from time import perf_counter
 
 from flask import Flask, jsonify, request, session
 from flask_cors import CORS
@@ -18,6 +19,18 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from sqlalchemy import case, inspect
 from werkzeug.security import check_password_hash, generate_password_hash
+
+try:
+    import redis
+except ImportError:
+    redis = None
+
+try:
+    from bson import ObjectId
+    from pymongo import MongoClient
+except ImportError:
+    MongoClient = None
+    ObjectId = None
 
 
 load_dotenv()
@@ -31,6 +44,9 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
 app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
+    days=int(os.getenv("SESSION_TTL_DAYS", "30"))
+)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 CORS_ORIGINS = [
@@ -45,15 +61,81 @@ CORS_ORIGINS = [
 CORS(app, supports_credentials=True, origins=CORS_ORIGINS)
 db = SQLAlchemy(app)
 
+REDIS_URL = os.getenv("REDIS_URL")
+MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "ai_queue_app")
+redis_client = redis.from_url(REDIS_URL, decode_responses=True) if redis and REDIS_URL else None
+mongo_client = MongoClient(MONGODB_URI) if MongoClient and MONGODB_URI else None
+mongo_db = mongo_client[MONGODB_DATABASE] if mongo_client is not None else None
+METRICS = {"requests_total": 0, "request_seconds_total": 0.0}
+
+if mongo_db is not None:
+    try:
+        mongo_db.profile_assets.create_index(
+            [("owner_type", 1), ("owner_id", 1), ("asset_type", 1)], unique=True
+        )
+    except Exception:
+        pass
+
 TOKEN_TTL_MINUTES = int(os.getenv("TOKEN_TTL_MINUTES", "60"))
 REMINDER_WINDOW_MINUTES = int(os.getenv("REMINDER_WINDOW_MINUTES", "10"))
 AUTOMATION_API_KEY = os.getenv("AUTOMATION_API_KEY", "local-automation-key")
 MAIL_SENDER = os.getenv("MAIL_SENDER", "python.asmath1290@gmail.com")
-SECURITY_TERMS_TEXT = (
-    "I accept the app terms, data security policy, and consent controls. "
-    "Passwords are protected with secure hashing, sessions are protected by server cookies, "
-    "and optional device details are collected only after permission."
-)
+SECURITY_TERMS_TEXT = """AI Queue App Terms and Conditions
+
+Last updated: 31 May 2026
+
+1. What this app does
+AI Queue App helps users, operators, service providers, and admins manage queue tokens, branch operations, service requests, notifications, and queue history for supported industries such as hospitals, schools, banks, hotels, offices, government offices, and other service locations.
+
+2. Data we may collect from users
+We collect only the data needed to create an account, manage queue activity, and operate the service:
+- Account details: name, email address, phone number, user ID, role, password hash, and login/session status.
+- Profile details: address, area, city, state, pincode, designation, emergency contact, personal details, profile image, and industry logo when uploaded by the user or admin.
+- Queue details: token number, service need, branch, queue status, priority, allocation, service provider, suggestions, transactions, price details, queue history, and related timestamps.
+- Industry and branch details: industry name, branch name, branch type, address fields, dashboard settings, role labels, user form fields, and admin-managed configuration.
+- Security and audit details: login events, logout events, role changes, password reset requests, admin decisions, browser/user-agent information, IP address, and app activity logs required for security and support.
+- Optional uploaded content: profile images, logos, and user form image/url fields when the app configuration asks for them.
+
+3. Data we do not collect
+The app does not request browser location permission. It does not access the camera, microphone, contacts, files, or precise GPS location unless a future feature clearly asks for separate permission and the user/admin enables it.
+
+4. How we use the data
+We use data to:
+- Create and protect user accounts.
+- Keep users logged in until logout or session expiry.
+- Generate, verify, allocate, update, reject, and complete queue tokens.
+- Show queue status, estimated wait, branch dashboards, provider dashboards, and admin reports.
+- Support profile images and organization logos.
+- Send queue notifications and password reset/admin approval workflows.
+- Improve speed by caching only required current-user data.
+- Monitor service health, troubleshoot errors, detect abuse, and protect the system.
+
+5. Passwords, sessions, and security
+Passwords are stored as secure hashes, not plain text. Login uses protected server sessions and browser cookies. Users must keep their password confidential and must logout on shared devices. Admins must keep secret/admin passwords private and must not share privileged accounts.
+
+6. Data sharing
+User data is shown only to roles that need it for queue operations, support, administration, or security. Main admins and industry admins may see operational records needed to manage users, branches, queues, password resets, and audit logs. We do not sell user data.
+
+7. User responsibilities
+Users agree to provide accurate information, use the app only for lawful queue and service operations, avoid uploading harmful or inappropriate content, avoid attempting unauthorized access, and report incorrect or suspicious activity to the admin.
+
+8. Admin responsibilities
+Admins must configure branches, roles, service fields, pricing, and dashboard controls responsibly. Admins must protect user information, grant access only to required staff, and remove or deactivate accounts that no longer need access.
+
+9. Data retention
+Queue, profile, audit, notification, and configuration data may be retained while the account, branch, or industry is active and as needed for reporting, support, security, or legal compliance. Admins may delete or deactivate users, branches, and industries where supported by the app.
+
+10. Service updates and availability
+The app may show an updating page when the frontend, backend, database, cache, or deployment is starting, updating, or temporarily unavailable. Users should wait for the displayed retry time or contact the admin if the issue continues.
+
+11. Limitation of use
+This app supports queue and service management. It is not a substitute for professional medical, legal, financial, or emergency advice. For emergencies, users should contact the appropriate emergency service directly.
+
+12. Changes to these terms
+The app owner or main admin may update these terms when features, data use, or legal requirements change. Continued use after an update means the user accepts the updated terms.
+
+By creating an account or continuing to use AI Queue App, the user accepts these terms and the data practices described above."""
 
 ACTIVE_TOKEN_STATUSES = ("requested", "verified", "customer_in", "allocated")
 OPERATOR_VISIBLE_TOKEN_STATUSES = ACTIVE_TOKEN_STATUSES + ("cancelled",)
@@ -453,6 +535,76 @@ def create_notification(user_id, message, notification_type, token_id=None):
     )
 
 
+def cache_get_json(key):
+    if not redis_client:
+        return None
+    try:
+        value = redis_client.get(key)
+        return json.loads(value) if value else None
+    except Exception:
+        return None
+
+
+def cache_set_json(key, value, ttl_seconds=300):
+    if not redis_client:
+        return
+    try:
+        redis_client.setex(key, ttl_seconds, json.dumps(value))
+    except Exception:
+        pass
+
+
+def cache_delete(key):
+    if not redis_client:
+        return
+    try:
+        redis_client.delete(key)
+    except Exception:
+        pass
+
+
+def store_mongo_asset(owner_type, owner_id, asset_type, data_url):
+    if not data_url or not data_url.startswith("data:image/") or mongo_db is None:
+        return data_url
+    header, _, payload = data_url.partition(",")
+    if not payload:
+        return data_url
+    content_type = header.split(";", 1)[0].replace("data:", "") or "image/png"
+    result = mongo_db.profile_assets.update_one(
+        {"owner_type": owner_type, "owner_id": owner_id, "asset_type": asset_type},
+        {
+            "$set": {
+                "content_type": content_type,
+                "data": payload,
+                "updated_at": datetime.utcnow(),
+            },
+            "$setOnInsert": {"created_at": datetime.utcnow()},
+        },
+        upsert=True,
+    )
+    asset_id = result.upserted_id
+    if asset_id is None:
+        existing = mongo_db.profile_assets.find_one(
+            {"owner_type": owner_type, "owner_id": owner_id, "asset_type": asset_type},
+            {"_id": 1},
+        )
+        asset_id = existing["_id"] if existing else None
+    return f"mongo://profile_assets/{asset_id}" if asset_id else data_url
+
+
+def load_mongo_asset(value):
+    if not value or not str(value).startswith("mongo://profile_assets/") or mongo_db is None or ObjectId is None:
+        return value
+    asset_id = str(value).rsplit("/", 1)[-1]
+    try:
+        item = mongo_db.profile_assets.find_one({"_id": ObjectId(asset_id)})
+    except Exception:
+        item = None
+    if not item:
+        return None
+    return f"data:{item.get('content_type', 'image/png')};base64,{item.get('data', '')}"
+
+
 def record_event(event_type, message, user=None, token=None, industry_id=None, branch_id=None):
     event_user = user or (token.user if token else current_user())
     db.session.add(
@@ -470,6 +622,11 @@ def record_event(event_type, message, user=None, token=None, industry_id=None, b
 
 
 @app.before_request
+def start_metrics_timer():
+    request._metrics_started_at = perf_counter()
+
+
+@app.before_request
 def touch_current_user():
     if "user_id" in session:
         user = db.session.get(User, session["user_id"])
@@ -480,10 +637,14 @@ def touch_current_user():
 
 @app.after_request
 def add_security_headers(response):
+    started_at = getattr(request, "_metrics_started_at", None)
+    if started_at is not None:
+        METRICS["requests_total"] += 1
+        METRICS["request_seconds_total"] += perf_counter() - started_at
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "geolocation=(self), camera=(), microphone=()")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
     if app.config["SESSION_COOKIE_SECURE"]:
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
@@ -530,12 +691,12 @@ def client_ip():
 
 def record_device_audit(user, details=None, consent_allowed=None, event_type="usage"):
     details = details or {}
-    allowed = bool(user.device_consent) if consent_allowed is None else bool(consent_allowed)
+    allowed = True
     audit = DeviceAudit(
-        user_id=user.id if allowed else None,
+        user_id=user.id,
         event_type=event_type,
         consent_allowed=allowed,
-        display_name_encrypted=encrypt_text(user.name if allowed else "Unknown user"),
+        display_name_encrypted=encrypt_text(user.name),
         device_name_encrypted=encrypt_text(details.get("device_name") or details.get("platform") or "Unknown device"),
         place_encrypted=encrypt_text(details.get("place") or "Unknown place"),
         ip_encrypted=encrypt_text(client_ip()),
@@ -581,15 +742,15 @@ def serialize_user(user):
         "industry_type": user.industry.industry_type if user.industry else None,
         "branch_id": user.branch_id,
         "branch_name": user.branch.name if user.branch else None,
-        "avatar_url": user.avatar_url,
+        "avatar_url": load_mongo_asset(user.avatar_url),
         "avatar_preset": user.avatar_preset or "face-1",
-        "industry_logo_url": user.industry.logo_url if user.industry else None,
+        "industry_logo_url": load_mongo_asset(user.industry.logo_url) if user.industry else None,
         "industry_logo_preset": user.industry.logo_preset if user.industry else "logo-1",
         "must_reset_password": user.must_reset_password,
         "terms_accepted": bool(user.terms_accepted_at),
         "terms_text": SECURITY_TERMS_TEXT,
         "device_consent": user.device_consent,
-        "device_consent_required": user.device_consent is None,
+        "device_consent_required": False,
         "last_seen_at": user.last_seen_at.isoformat() + "Z" if user.last_seen_at else None,
         "is_online": is_online(user),
     }
@@ -764,29 +925,25 @@ def serialize_device_audit(item):
         "id": item.id,
         "user_id": item.user_id,
         "event_type": item.event_type or "consent",
-        "display_name": name if item.consent_allowed else "Unknown user",
-        "device_name": decrypt_text(item.device_name_encrypted) if item.consent_allowed else "Not shared",
-        "place": decrypt_text(item.place_encrypted) if item.consent_allowed else "Not shared",
-        "ip_address": decrypt_text(item.ip_encrypted) if item.consent_allowed else "Hidden",
-        "browser": decrypt_text(item.user_agent_encrypted) if item.consent_allowed else "Hidden",
-        "permission": "Allowed" if item.consent_allowed else "Not allowed",
+        "display_name": name,
+        "device_name": decrypt_text(item.device_name_encrypted),
+        "place": decrypt_text(item.place_encrypted),
+        "ip_address": decrypt_text(item.ip_encrypted),
+        "browser": decrypt_text(item.user_agent_encrypted),
         "created_at": item.created_at.isoformat() + "Z" if item.created_at else None,
     }
 
 
 def serialize_user_security_log(user, audit=None):
-    allowed = bool(user.device_consent)
-    answered = user.device_consent is not None
     return {
         "id": user.id,
-        "display_name": user.name if allowed else "Unknown user",
-        "email": user.email if allowed else "Hidden",
-        "role": user.role if allowed else "Hidden",
-        "permission": "Allowed" if allowed else "Not allowed" if answered else "Not answered",
-        "device_name": decrypt_text(audit.device_name_encrypted) if allowed and audit else "Not shared",
-        "place": decrypt_text(audit.place_encrypted) if allowed and audit else "Not shared",
-        "ip_address": decrypt_text(audit.ip_encrypted) if allowed and audit else "Hidden",
-        "browser": decrypt_text(audit.user_agent_encrypted) if allowed and audit else "Hidden",
+        "display_name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "device_name": decrypt_text(audit.device_name_encrypted) if audit else "Not recorded",
+        "place": decrypt_text(audit.place_encrypted) if audit else "Not recorded",
+        "ip_address": decrypt_text(audit.ip_encrypted) if audit else "Not recorded",
+        "browser": decrypt_text(audit.user_agent_encrypted) if audit else "Not recorded",
         "last_used_at": user.last_seen_at.isoformat() + "Z" if user.last_seen_at else None,
         "consent_at": user.device_consent_at.isoformat() + "Z" if user.device_consent_at else None,
         "created_at": user.created_at.isoformat() + "Z" if user.created_at else None,
@@ -952,12 +1109,15 @@ def login():
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(data.get("password") or ""):
         return jsonify({"success": False, "error": "Invalid email or password"}), 401
+    session.permanent = True
     session["user_id"] = user.id
     session["user_role"] = user.role
     record_device_audit(user, data.get("device_details") or {}, event_type="login")
     record_event("login", f"{user.name} logged in.", user=user)
     db.session.commit()
-    return jsonify({"success": True, "user": serialize_user(user)}), 200
+    payload = serialize_user(user)
+    cache_set_json(f"user:{user.id}", payload, ttl_seconds=300)
+    return jsonify({"success": True, "user": payload}), 200
 
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -966,6 +1126,7 @@ def logout():
     if user:
         record_event("logout", f"{user.name} logged out.", user=user)
         db.session.commit()
+        cache_delete(f"user:{user.id}")
     session.clear()
     return jsonify({"success": True}), 200
 
@@ -973,7 +1134,14 @@ def logout():
 @app.route("/api/auth/me")
 @login_required
 def me():
-    return jsonify({"success": True, "user": serialize_user(current_user())}), 200
+    user = current_user()
+    cache_key = f"user:{user.id}"
+    cached_user = cache_get_json(cache_key)
+    if cached_user:
+        return jsonify({"success": True, "user": cached_user}), 200
+    payload = serialize_user(user)
+    cache_set_json(cache_key, payload, ttl_seconds=300)
+    return jsonify({"success": True, "user": payload}), 200
 
 
 @app.route("/api/security/terms")
@@ -1016,7 +1184,7 @@ def admin_secret_devices():
             "success": True,
             "security": {
                 "terms": SECURITY_TERMS_TEXT,
-                "encryption": "Device audit fields are encrypted at rest with an app-level encryption key and verified before display.",
+                "encryption": "Device audit fields are encrypted at rest with an app-level encryption key before display.",
                 "headers": ["X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"],
             },
             "devices": [serialize_device_audit(item) for item in audits],
@@ -1053,6 +1221,26 @@ def change_secret_password():
     session.pop("secret_unlocked", None)
     db.session.commit()
     return jsonify({"success": True, "message": "Secret password updated"}), 200
+
+
+@app.route("/metrics")
+def metrics():
+    average = METRICS["request_seconds_total"] / METRICS["requests_total"] if METRICS["requests_total"] else 0
+    lines = [
+        "# HELP ai_queue_requests_total Total HTTP requests handled by this process.",
+        "# TYPE ai_queue_requests_total counter",
+        f"ai_queue_requests_total {METRICS['requests_total']}",
+        "# HELP ai_queue_request_seconds_average Average request handling time in seconds.",
+        "# TYPE ai_queue_request_seconds_average gauge",
+        f"ai_queue_request_seconds_average {average:.6f}",
+        "# HELP ai_queue_cache_enabled Redis cache availability flag.",
+        "# TYPE ai_queue_cache_enabled gauge",
+        f"ai_queue_cache_enabled {1 if redis_client else 0}",
+        "# HELP ai_queue_mongo_assets_enabled MongoDB profile asset storage availability flag.",
+        "# TYPE ai_queue_mongo_assets_enabled gauge",
+        f"ai_queue_mongo_assets_enabled {1 if mongo_db is not None else 0}",
+    ]
+    return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
 
 
 @app.route("/api/auth/reset-password", methods=["POST"])
@@ -1189,12 +1377,16 @@ def update_profile():
     user.emergency_contact = (data.get("emergency_contact") or "").strip() or None
     user.personal_details = (data.get("personal_details") or "").strip() or None
     user.avatar_preset = (data.get("avatar_preset") or "face-1").strip()
-    user.avatar_url = (data.get("avatar_url") or "").strip() or None
+    user.avatar_url = store_mongo_asset("user", user.id, "avatar", (data.get("avatar_url") or "").strip()) or None
     if user.role in ("industry_admin", "main_admin") and user.industry:
         user.industry.logo_preset = (data.get("industry_logo_preset") or "logo-1").strip()
-        user.industry.logo_url = (data.get("industry_logo_url") or "").strip() or None
+        user.industry.logo_url = store_mongo_asset(
+            "industry", user.industry.id, "logo", (data.get("industry_logo_url") or "").strip()
+        ) or None
     db.session.commit()
-    return jsonify({"success": True, "user": serialize_user(user)}), 200
+    payload = serialize_user(user)
+    cache_set_json(f"user:{user.id}", payload, ttl_seconds=300)
+    return jsonify({"success": True, "user": payload}), 200
 
 
 @app.route("/api/admin/password-reset-requests")

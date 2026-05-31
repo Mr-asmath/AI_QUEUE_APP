@@ -344,18 +344,39 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
     }
   };
 
-  const handleImageUpload = (event, field, presetField) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const imageToDataUrl = (file, maxSize) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const context = canvas.getContext('2d');
+        context.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handleImageUpload = async (event, field, presetField) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await imageToDataUrl(file, field === 'industry_logo_url' ? 512 : 320);
       setProfileForm((current) => ({
         ...current,
-        [field]: reader.result,
+        [field]: dataUrl,
         ...(presetField ? { [presetField]: '' } : {})
       }));
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      setError('Image upload failed. Try a smaller image file.');
+    }
   };
 
   const changePassword = async (event) => {
@@ -404,9 +425,9 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
   const profileSections = [
     { id: 'home', label: 'Home' },
     { id: 'account', label: 'Account Details' },
+    { id: 'password', label: 'Change Password' },
     ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'logo', label: 'App Logo' }] : []),
     ...(user.role === 'industry_admin' ? [{ id: 'industry-settings', label: 'Industry Settings' }] : []),
-    { id: 'password', label: 'Change Password' },
     ...(user.role === 'main_admin' ? [{ id: 'secret-password', label: 'Secret Password' }] : []),
     { id: 'session', label: 'Account Session' }
   ];

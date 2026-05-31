@@ -192,8 +192,8 @@ function UserDashboard({ user, onLogout }) {
   const userTabs = [
     { id: 'new', label: 'Generate Token' },
     { id: 'tokens', label: 'My Tokens' },
-    { id: 'suggestions', label: 'Suggestions' },
-    { id: 'notifications', label: 'Notifications' }
+    { id: 'notifications', label: 'Notifications' },
+    { id: 'suggestions', label: 'Suggestions' }
   ];
 
   return (

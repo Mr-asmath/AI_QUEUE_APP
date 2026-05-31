@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-function QueueLoader({ message = 'QUEUE LOADING', overlay = false }) {
+function QueueLoader({ message = 'Queue loading', overlay = false }) {
   const [dots, setDots] = useState('');
 
   useEffect(() => {

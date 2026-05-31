@@ -32,7 +32,6 @@ function Navbar({ user, onNavigate }) {
               {initialsFor(user.name, avatarPreset.initials)}
             </span>
           )}
-          <span className="user-name">{user.name}</span>
         </button>
       </div>
     </nav>

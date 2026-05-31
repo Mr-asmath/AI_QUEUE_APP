@@ -26,6 +26,14 @@ spec:
                   key: secret-key
             - name: DATABASE_URL
               value: sqlite:////data/multi_industry_queue.db
+            - name: MONGODB_URI
+              value: mongodb://mongodb:27017/ai_queue_app
+            - name: MONGODB_DATABASE
+              value: ai_queue_app
+            - name: REDIS_URL
+              value: redis://redis:6379/0
+            - name: SESSION_TTL_DAYS
+              value: "30"
             - name: TOKEN_TTL_MINUTES
               value: "60"
             - name: REMINDER_WINDOW_MINUTES
@@ -35,12 +43,40 @@ spec:
                 secretKeyRef:
                   name: ai-queue-secrets
                   key: automation-api-key
+            - name: WEB_CONCURRENCY
+              value: "2"
+            - name: WEB_THREADS
+              value: "4"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
           volumeMounts:
             - name: queue-data
               mountPath: /data
       volumes:
         - name: queue-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: ai-queue-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-queue-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
 ---
 apiVersion: v1
 kind: Service

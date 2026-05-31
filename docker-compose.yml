@@ -1,23 +1,99 @@
 services:
   backend:
     build: ./backend
+    restart: unless-stopped
     environment:
       SECRET_KEY: change-me
       DATABASE_URL: sqlite:////data/multi_industry_queue.db
+      MONGODB_URI: mongodb://mongodb:27017/ai_queue_app
+      MONGODB_DATABASE: ai_queue_app
+      REDIS_URL: redis://redis:6379/0
+      SESSION_TTL_DAYS: 30
       TOKEN_TTL_MINUTES: 60
       REMINDER_WINDOW_MINUTES: 10
       AUTOMATION_API_KEY: local-automation-key
+      WEB_CONCURRENCY: 2
+      WEB_THREADS: 4
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - queue-data:/data
     ports:
       - "5000:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    init: true
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/127.0.0.1/27017'"]
+      interval: 10s
+      timeout: 6s
+      retries: 30
+      start_period: 300s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  mongo-express:
+    image: mongo-express:1
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+    ports:
+      - "8081:8081"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    restart: unless-stopped
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
 
   n8n:
     image: n8nio/n8n:latest
@@ -33,4 +109,8 @@ services:
 
 volumes:
   queue-data:
+  mongo-data:
+  mongo-config:
+  redis-data:
+  prometheus-data:
   n8n-data:

@@ -86,7 +86,7 @@ const emptyBranch = {
 };
 
 function AdminDashboard({ user, onHome }) {
-  const initialTab = user.role === 'main_admin' ? 'requests' : user.role === 'industry_admin' ? 'branches' : 'queue';
+  const initialTab = 'queue';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [requests, setRequests] = useState([]);
   const [resetRequests, setResetRequests] = useState([]);
@@ -537,17 +537,17 @@ function AdminDashboard({ user, onHome }) {
     setActiveTab(activeTab === 'create-staff' ? 'staff' : 'branches');
   };
   const dashboardTabs = [
-    ...(user.role === 'main_admin' ? [{ id: 'requests', label: 'Access Requests' }] : []),
-    ...(user.role === 'main_admin' ? [{ id: 'event-logs', label: 'Event Logs' }] : []),
-    ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'user-management', label: 'User Management' }] : []),
-    ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Reset Requests' }] : []),
-    ...(user.role === 'main_admin' ? [{ id: 'secret', label: 'Secret' }] : []),
+    { id: 'queue', label: 'Current Queue' },
     ...(user.role === 'industry_admin' ? [
       { id: 'branches', label: 'Branches' },
       { id: 'staff', label: 'Staff' }
     ] : []),
-    { id: 'queue', label: 'Current Queue' },
-    { id: 'queue-history', label: 'Queue History' }
+    ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'user-management', label: 'Users' }] : []),
+    ...(user.role === 'main_admin' ? [{ id: 'requests', label: 'Access Requests' }] : []),
+    ...(['main_admin', 'industry_admin'].includes(user.role) ? [{ id: 'reset-requests', label: 'Password Resets' }] : []),
+    { id: 'queue-history', label: 'History' },
+    ...(user.role === 'main_admin' ? [{ id: 'event-logs', label: 'Event Logs' }] : []),
+    ...(user.role === 'main_admin' ? [{ id: 'secret', label: 'Secret' }] : [])
   ];
   const selectedTabValue = dashboardTabs.some((tab) => tab.id === activeTab)
     ? activeTab
@@ -824,7 +824,7 @@ function AdminDashboard({ user, onHome }) {
           <div className="section-heading">
             <div>
               <h3>Secret Security</h3>
-              <p>Main-admin-only device permission log and data protection status.</p>
+              <p>Main-admin-only usage log and data protection status.</p>
             </div>
             <button type="button" className="secondary-btn" onClick={loadSecretDevices}>Refresh</button>
           </div>
@@ -855,7 +855,6 @@ function AdminDashboard({ user, onHome }) {
                   <th>Name</th>
                   <th>Email</th>
                   <th>Role</th>
-                  <th>Permission</th>
                   <th>Place</th>
                   <th>Device</th>
                   <th>Last Used</th>
@@ -867,7 +866,6 @@ function AdminDashboard({ user, onHome }) {
                     <td>{item.display_name}</td>
                     <td>{item.email}</td>
                     <td>{item.role}</td>
-                    <td><span className={item.permission === 'Allowed' ? 'badge badge-success' : item.permission === 'Not answered' ? 'badge badge-info' : 'badge badge-warning'}>{item.permission}</span></td>
                     <td>{item.place}</td>
                     <td>{item.device_name}</td>
                     <td>{item.last_used_at ? new Date(item.last_used_at).toLocaleString() : '-'}</td>
@@ -875,7 +873,7 @@ function AdminDashboard({ user, onHome }) {
                 ))}
                 {!secretUserLogs.length && (
                   <tr>
-                    <td colSpan="7" className="empty-table-cell">No user usage records yet.</td>
+                    <td colSpan="6" className="empty-table-cell">No user usage records yet.</td>
                   </tr>
                 )}
               </tbody>
@@ -885,7 +883,7 @@ function AdminDashboard({ user, onHome }) {
             <div className="section-heading compact-heading">
               <div>
                 <h3>Device Event Log</h3>
-                <p>Login and permission events stored for the security table.</p>
+                <p>Login events stored for the security table.</p>
               </div>
             </div>
             <table className="data-table">
@@ -893,7 +891,6 @@ function AdminDashboard({ user, onHome }) {
                 <tr>
                   <th>Name</th>
                   <th>Event</th>
-                  <th>Permission</th>
                   <th>Place</th>
                   <th>Device</th>
                   <th>IP</th>
@@ -906,7 +903,6 @@ function AdminDashboard({ user, onHome }) {
                   <tr key={item.id}>
                     <td>{item.display_name}</td>
                     <td>{item.event_type}</td>
-                    <td><span className={item.permission === 'Allowed' ? 'badge badge-success' : 'badge badge-warning'}>{item.permission}</span></td>
                     <td>{item.place}</td>
                     <td>{item.device_name}</td>
                     <td>{item.ip_address}</td>
@@ -916,7 +912,7 @@ function AdminDashboard({ user, onHome }) {
                 ))}
                 {!secretDevices.length && (
                   <tr>
-                    <td colSpan="8" className="empty-table-cell">No device permission records yet.</td>
+                    <td colSpan="7" className="empty-table-cell">No device usage records yet.</td>
                   </tr>
                 )}
               </tbody>
