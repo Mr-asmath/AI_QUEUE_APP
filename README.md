@@ -29,25 +29,6 @@ The app helps teams manage:
 
 ---
 
-## Setup Guide for Teammate
-
-The full laptop setup and installation guide for Tharshini is available here:
-
-[`doc/word/AI_Queue_App_Setup_Installation_Guide_Tharshini.docx`](doc/word/AI_Queue_App_Setup_Installation_Guide_Tharshini.docx)
-
-It includes:
-
-- Laptop apps to install.
-- VS Code extensions.
-- Frontend and backend package lists.
-- Docker setup.
-- Git pull, commit, and push workflow.
-- `main` branch update flow.
-- `tharshini` branch workflow.
-- Step-by-step running commands.
-
----
-
 ## Required Apps
 
 | App | Purpose |
