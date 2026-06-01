@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 import ResetPassword from './components/ResetPassword';
 import ProfilePage from './components/ProfilePage';
 import QueueLoader from './components/QueueLoader';
+import WelcomePage from './components/WelcomePage';
 import { apiPath } from './config';
 
 function App() {
@@ -18,6 +19,17 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [networkIssue, setNetworkIssue] = useState('');
+  const [showWelcome, setShowWelcome] = useState(!initialResetToken);
+
+  const applyTheme = useCallback((theme = {}) => {
+    const root = document.documentElement;
+    root.dataset.themeMode = theme.mode || 'light';
+    root.style.setProperty('--theme-1', theme.theme_1 || '#14b8a6');
+    root.style.setProperty('--theme-2', theme.theme_2 || '#2563eb');
+    root.style.setProperty('--font-color-1', theme.font_color_1 || '#0f172a');
+    root.style.setProperty('--font-color-2', theme.font_color_2 || '#64748b');
+    root.style.setProperty('--app-font-family', theme.font_family || 'Inter, Arial, sans-serif');
+  }, []);
 
   useEffect(() => {
     const updateOnlineState = () => setNetworkIssue(navigator.onLine ? '' : 'Network issue. Check connection');
@@ -51,6 +63,7 @@ function App() {
       
       if (data.success) {
         setNetworkIssue('');
+        applyTheme(data.user.theme);
         setUser(data.user);
         setCurrentView(resetToken ? 'reset-password' : 'dashboard');
       }
@@ -60,7 +73,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [resetToken]);
+  }, [applyTheme, resetToken]);
 
   useEffect(() => {
     checkAuth();
@@ -85,6 +98,7 @@ function App() {
 
   const handleLogin = (userData) => {
     setNetworkIssue('');
+    applyTheme(userData.theme);
     setUser(userData);
     setResetToken(null);
     setCurrentView('dashboard');
@@ -105,8 +119,13 @@ function App() {
   };
 
   const handleUserUpdate = (updatedUser) => {
+    applyTheme(updatedUser.theme);
     setUser(updatedUser);
   };
+
+  if (showWelcome) {
+    return <WelcomePage onDone={() => setShowWelcome(false)} />;
+  }
 
   if (loading) {
     return <QueueLoader message="Queue loading" overlay />;

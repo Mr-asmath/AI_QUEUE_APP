@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiPath } from '../config';
 import { roleLabelOptions, roleLabelsFor } from '../roleLabels';
 import BottomNavigation from './BottomNavigation';
@@ -99,6 +99,9 @@ const hydrateBranchEditForm = (branch) => {
 
 function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
   const [activeSection, setActiveSection] = useState('account');
+  const avatarInputRef = useRef(null);
+  const logoInputRef = useRef(null);
+  const avatarPickerRef = useRef(null);
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
     phone: user.phone || '',
@@ -125,6 +128,7 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [verification, setVerification] = useState({ channel: '', code: [], devCode: '' });
   const [settingsBranches, setSettingsBranches] = useState([]);
   const [branchEditForm, setBranchEditForm] = useState(null);
   const currentRoleOptions = roleLabelOptions(user.industry_type);
@@ -139,6 +143,24 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
       service_provider: currentRoleOptions.service_provider[0]
     }
   });
+  const [themeForm, setThemeForm] = useState({
+    mode: user.theme?.mode || 'light',
+    theme_1: user.theme?.theme_1 || '#14b8a6',
+    theme_2: user.theme?.theme_2 || '#2563eb',
+    font_color_1: user.theme?.font_color_1 || '#0f172a',
+    font_color_2: user.theme?.font_color_2 || '#64748b',
+    font_family: user.theme?.font_family || 'Inter, Arial, sans-serif'
+  });
+  const defaultTheme = {
+    mode: 'light',
+    theme_1: '#14b8a6',
+    theme_2: '#2563eb',
+    font_color_1: '#0f172a',
+    font_color_2: '#64748b',
+    font_family: 'Inter, Arial, sans-serif'
+  };
+
+  const codeLength = verification.channel === 'phone' ? 4 : 6;
 
   const api = useCallback(async (path, options = {}) => {
     const response = await fetch(apiPath(path), {
@@ -206,6 +228,22 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
   useEffect(() => {
     loadIndustrySettings();
   }, [loadIndustrySettings]);
+
+  useEffect(() => {
+    setProfileForm((current) => ({
+      ...current,
+      avatar_url: user.avatar_url || current.avatar_url,
+      industry_logo_url: user.industry_logo_url || current.industry_logo_url
+    }));
+    setThemeForm({
+      mode: user.theme?.mode || 'light',
+      theme_1: user.theme?.theme_1 || '#14b8a6',
+      theme_2: user.theme?.theme_2 || '#2563eb',
+      font_color_1: user.theme?.font_color_1 || '#0f172a',
+      font_color_2: user.theme?.font_color_2 || '#64748b',
+      font_family: user.theme?.font_family || 'Inter, Arial, sans-serif'
+    });
+  }, [user]);
 
   const saveIndustrySettings = async (event) => {
     event.preventDefault();
@@ -379,6 +417,82 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
     }
   };
 
+  const saveTheme = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    setError('');
+    const data = await api('/api/theme', {
+      method: 'PUT',
+      body: JSON.stringify(themeForm)
+    });
+    if (data.success) {
+      onUserUpdate({ ...user, theme: data.theme });
+      setMessage('Theme settings updated.');
+    } else {
+      setError(data.error || 'Theme update failed.');
+    }
+  };
+
+  const allowMessagingAndSend = async (channel) => {
+    setMessage('');
+    setError('');
+    let activeUser = user;
+    if (!user.messaging_consent) {
+      const consentData = await api('/api/auth/messaging-consent', {
+        method: 'POST',
+        body: JSON.stringify({ allow: true })
+      });
+      if (consentData.success) {
+        activeUser = consentData.user;
+        onUserUpdate(consentData.user);
+      } else {
+        setError(consentData.error || 'Messaging permission update failed.');
+        return;
+      }
+    }
+    const data = await api('/api/auth/verification/send', {
+      method: 'POST',
+      body: JSON.stringify({ channel, phone: profileForm.phone })
+    });
+    if (data.success) {
+      setVerification({ channel, code: Array(channel === 'phone' ? 4 : 6).fill(''), devCode: data.dev_code || '' });
+      setMessage(`${channel === 'phone' ? 'SMS' : 'Email'} verification code sent.`);
+      if (activeUser.id !== user.id) onUserUpdate(activeUser);
+    } else {
+      setError(data.error || 'Verification code send failed.');
+    }
+  };
+
+  const updateVerificationCode = (index, value) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    setVerification((current) => {
+      const next = [...current.code];
+      next[index] = digit;
+      if (next.every(Boolean) && next.join('').length === codeLength) {
+        window.setTimeout(() => acceptVerificationCode(next.join('')), 120);
+      }
+      return { ...current, code: next };
+    });
+    if (digit && index < codeLength - 1) {
+      document.querySelector(`[data-profile-otp-index="${index + 1}"]`)?.focus();
+    }
+  };
+
+  const acceptVerificationCode = async (codeOverride) => {
+    const code = codeOverride || verification.code.join('');
+    const data = await api('/api/auth/verification/verify', {
+      method: 'POST',
+      body: JSON.stringify({ channel: verification.channel, code })
+    });
+    if (data.success) {
+      onUserUpdate(data.user);
+      setVerification({ channel: '', code: [], devCode: '' });
+      setMessage(`${verification.channel === 'phone' ? 'Phone' : 'Email'} verified.`);
+    } else {
+      setError(data.error || 'Verification failed.');
+    }
+  };
+
   const changePassword = async (event) => {
     event.preventDefault();
     setMessage('');
@@ -422,11 +536,19 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
     }
   };
 
+  const openAccountImageEditor = () => {
+    setActiveSection('account');
+    window.setTimeout(() => {
+      avatarPickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  };
+
   const profileSections = [
     { id: 'home', label: 'Home' },
     { id: 'account', label: 'Account Details' },
     { id: 'password', label: 'Change Password' },
     ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'logo', label: 'App Logo' }] : []),
+    ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'theme', label: 'Theme' }] : []),
     ...(user.role === 'industry_admin' ? [{ id: 'industry-settings', label: 'Industry Settings' }] : []),
     ...(user.role === 'main_admin' ? [{ id: 'secret-password', label: 'Secret Password' }] : []),
     { id: 'session', label: 'Account Session' }
@@ -436,11 +558,13 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
     <div className="dashboard profile-page">
       <div className="dashboard-header">
         <div className="profile-title">
-          {profileForm.avatar_url ? (
-            <img className="profile-hero-avatar" src={profileForm.avatar_url} alt="" />
-          ) : (
-            <span className="profile-hero-avatar upload-placeholder">Image</span>
-          )}
+          <button type="button" className="profile-hero-button" onClick={openAccountImageEditor} aria-label="Open profile image editor">
+            {profileForm.avatar_url ? (
+              <img className="profile-hero-avatar" src={profileForm.avatar_url} alt="" />
+            ) : (
+              <span className="profile-hero-avatar upload-placeholder">Image</span>
+            )}
+          </button>
           <div>
           <h1>Your Profile</h1>
           <p className="user-email">{user.email}</p>
@@ -472,13 +596,37 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
         {activeSection === 'account' && (
           <form className="control-panel" onSubmit={saveProfile}>
           <h3>Account Details</h3>
+          <div className="form-group profile-image-field" ref={avatarPickerRef}>
+            <label>Profile image</label>
+            <div className="image-upload-center">
+              <button type="button" className="image-picker avatar-picker" onClick={() => avatarInputRef.current?.click()} aria-label="Change profile image">
+                {profileForm.avatar_url ? (
+                  <img src={profileForm.avatar_url} alt="" />
+                ) : (
+                  <span>{(profileForm.name || user.name || 'U').slice(0, 2).toUpperCase()}</span>
+                )}
+                <span className="camera-badge material-icons" aria-hidden="true">photo_camera</span>
+              </button>
+              <input
+                ref={avatarInputRef}
+                className="visually-hidden-file"
+                type="file"
+                accept="image/*"
+                onChange={(event) => handleImageUpload(event, 'avatar_url', 'avatar_preset')}
+              />
+            </div>
+          </div>
           <div className="form-group">
             <label>Name</label>
             <input value={profileForm.name} onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })} required />
           </div>
           <div className="form-group">
             <label>Email</label>
-            <input value={user.email} disabled />
+            <div className="verified-input-row">
+              <input value={user.email} disabled />
+              <span className={user.email_verified ? 'verify-dot verified' : 'verify-dot'}>{user.email_verified ? '✓' : ''}</span>
+              {!user.email_verified && <button type="button" className="secondary-btn verify-inline-btn" onClick={() => allowMessagingAndSend('email')}>Verify</button>}
+            </div>
           </div>
           <div className="form-group">
             <label>6-digit user ID</label>
@@ -486,8 +634,31 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
           </div>
           <div className="form-group">
             <label>Phone</label>
-            <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} />
+            <div className="verified-input-row">
+              <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} />
+              <span className={user.phone_verified && profileForm.phone === user.phone ? 'verify-dot verified' : 'verify-dot'}>{user.phone_verified && profileForm.phone === user.phone ? '✓' : ''}</span>
+              {!(user.phone_verified && profileForm.phone === user.phone) && <button type="button" className="secondary-btn verify-inline-btn" onClick={() => allowMessagingAndSend('phone')}>Verify</button>}
+            </div>
           </div>
+          {verification.channel && (
+            <div className="verification-panel compact-verification">
+              <h4>{verification.channel === 'phone' ? 'Phone' : 'Email'} verification</h4>
+              {verification.devCode && <div className="info-message">Development code: {verification.devCode}</div>}
+              <div className="otp-box-row">
+                {verification.code.map((digit, index) => (
+                  <input
+                    key={index}
+                    data-profile-otp-index={index}
+                    inputMode="numeric"
+                    maxLength="1"
+                    value={digit}
+                    onChange={(event) => updateVerificationCode(index, event.target.value)}
+                  />
+                ))}
+                <button type="button" onClick={acceptVerificationCode} disabled={verification.code.join('').length !== codeLength}>Accept</button>
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label>Area</label>
             <input value={profileForm.area} onChange={(event) => setProfileForm({ ...profileForm, area: event.target.value })} />
@@ -518,14 +689,6 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
             <label>More personal details</label>
             <textarea value={profileForm.personal_details} onChange={(event) => setProfileForm({ ...profileForm, personal_details: event.target.value })} />
           </div>
-          <div className="form-group">
-            <label>Upload profile image</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => handleImageUpload(event, 'avatar_url', 'avatar_preset')}
-            />
-          </div>
           <button type="submit">Save Profile</button>
         </form>
         )}
@@ -534,25 +697,73 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
           <form className="control-panel" onSubmit={saveProfile}>
             <h3>App Logo</h3>
             <div className="brand-preview">
-              {profileForm.industry_logo_url ? (
-                <img className="brand-preview-icon" src={profileForm.industry_logo_url} alt="" />
-              ) : (
-                <span className="brand-preview-icon upload-placeholder">Logo</span>
-              )}
+              <button type="button" className="image-picker logo-picker" onClick={() => logoInputRef.current?.click()} aria-label="Change project logo">
+                {profileForm.industry_logo_url ? (
+                  <img src={profileForm.industry_logo_url} alt="" />
+                ) : (
+                  <span>Logo</span>
+                )}
+                <span className="camera-badge material-icons" aria-hidden="true">photo_camera</span>
+              </button>
               <div>
                 <strong>{user.industry_name || 'AI Queue Automation'}</strong>
                 <span>Header logo preview</span>
               </div>
             </div>
-            <div className="form-group">
-              <label>Upload project logo</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => handleImageUpload(event, 'industry_logo_url', 'industry_logo_preset')}
-              />
-            </div>
+            <input
+              ref={logoInputRef}
+              className="visually-hidden-file"
+              type="file"
+              accept="image/*"
+              onChange={(event) => handleImageUpload(event, 'industry_logo_url', 'industry_logo_preset')}
+            />
             <button type="submit">Save Logo</button>
+          </form>
+        )}
+
+        {activeSection === 'theme' && ['industry_admin', 'main_admin'].includes(user.role) && (
+          <form className="control-panel theme-panel" onSubmit={saveTheme}>
+            <h3>Theme</h3>
+            <p className="muted-text">
+              {user.role === 'main_admin'
+                ? 'Main admin theme applies across the app.'
+                : 'Industry admin theme applies to this industry and its branches.'}
+            </p>
+            <div className="checkbox-section">
+              <h4>Screen mode</h4>
+              <div className="radio-group">
+                <label><input type="radio" checked={themeForm.mode === 'light'} onChange={() => setThemeForm({ ...themeForm, mode: 'light' })} /> Light</label>
+                <label><input type="radio" checked={themeForm.mode === 'dark'} onChange={() => setThemeForm({ ...themeForm, mode: 'dark' })} /> Dark</label>
+              </div>
+            </div>
+            <div className="theme-grid">
+              <label>Theme 1<input type="color" value={themeForm.theme_1} onChange={(event) => setThemeForm({ ...themeForm, theme_1: event.target.value })} /></label>
+              <label>Theme 2<input type="color" value={themeForm.theme_2} onChange={(event) => setThemeForm({ ...themeForm, theme_2: event.target.value })} /></label>
+              <label>Font color 1<input type="color" value={themeForm.font_color_1} onChange={(event) => setThemeForm({ ...themeForm, font_color_1: event.target.value })} /></label>
+              <label>Font color 2<input type="color" value={themeForm.font_color_2} onChange={(event) => setThemeForm({ ...themeForm, font_color_2: event.target.value })} /></label>
+            </div>
+            <div className="form-group">
+              <label>Font style</label>
+              <select value={themeForm.font_family} onChange={(event) => setThemeForm({ ...themeForm, font_family: event.target.value })}>
+                <option value="Inter, Arial, sans-serif">Inter</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                <option value="'Courier New', monospace">Courier New</option>
+              </select>
+            </div>
+            <div className="theme-preview" style={{
+              background: `linear-gradient(135deg, ${themeForm.theme_1}, ${themeForm.theme_2})`,
+              color: themeForm.font_color_1,
+              fontFamily: themeForm.font_family
+            }}>
+              <strong>AI Queue Automation</strong>
+              <span style={{ color: themeForm.font_color_2 }}>Theme preview</span>
+            </div>
+            <div className="form-actions">
+              <button type="button" className="secondary-btn" onClick={() => setThemeForm(defaultTheme)}>Default Color</button>
+              <button type="submit">Save Theme</button>
+            </div>
           </form>
         )}
 

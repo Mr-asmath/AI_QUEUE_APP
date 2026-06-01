@@ -104,6 +104,8 @@ function AdminDashboard({ user, onHome }) {
   const [secretDevices, setSecretDevices] = useState([]);
   const [secretUserLogs, setSecretUserLogs] = useState([]);
   const [securityInfo, setSecurityInfo] = useState(null);
+  const [termsEditing, setTermsEditing] = useState(false);
+  const [termsDraft, setTermsDraft] = useState('');
   const [secretPassword, setSecretPassword] = useState('');
   const [showSecretLock, setShowSecretLock] = useState(false);
   const [historyFilters, setHistoryFilters] = useState({ q: '', date_from: '', date_to: '' });
@@ -421,6 +423,7 @@ function AdminDashboard({ user, onHome }) {
       setSecretDevices(data.devices || []);
       setSecretUserLogs(data.user_logs || []);
       setSecurityInfo(data.security || null);
+      setTermsDraft(data.security?.terms || '');
     } else {
       setMessage(data.error || 'Secret device table failed.');
     }
@@ -448,6 +451,21 @@ function AdminDashboard({ user, onHome }) {
   const openSecretLock = () => {
     setSecretPassword('');
     setShowSecretLock(true);
+  };
+
+  const saveSecurityTerms = async (event) => {
+    event.preventDefault();
+    const data = await api('/api/security/terms', {
+      method: 'PUT',
+      body: JSON.stringify({ terms: termsDraft })
+    });
+    if (data.success) {
+      setSecurityInfo((current) => ({ ...(current || {}), terms: data.terms }));
+      setTermsEditing(false);
+      setMessage('Terms and conditions updated.');
+    } else {
+      setMessage(data.error || 'Terms update failed.');
+    }
   };
 
   useEffect(() => {
@@ -831,7 +849,25 @@ function AdminDashboard({ user, onHome }) {
           <div className="security-summary-grid">
             <section>
               <span>Terms</span>
-              <p>{securityInfo?.terms || 'Terms loading...'}</p>
+              {termsEditing ? (
+                <form className="terms-edit-form" onSubmit={saveSecurityTerms}>
+                  <textarea value={termsDraft} onChange={(event) => setTermsDraft(event.target.value)} />
+                  <div className="form-actions">
+                    <button type="button" className="secondary-btn" onClick={() => {
+                      setTermsDraft(securityInfo?.terms || '');
+                      setTermsEditing(false);
+                    }}>Cancel</button>
+                    <button type="submit">Save Terms</button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <p>{securityInfo?.terms || 'Terms loading...'}</p>
+                  <button type="button" className="icon-action-btn" onClick={() => setTermsEditing(true)} aria-label="Edit terms">
+                    <span className="material-icons" aria-hidden="true">edit</span>
+                  </button>
+                </>
+              )}
             </section>
             <section>
               <span>Encryption</span>
@@ -1151,8 +1187,8 @@ function AdminDashboard({ user, onHome }) {
                 </div>
                 {user.role === 'main_admin' && (
                   <div className="button-row">
-                    <button type="button" className="secondary-btn" onClick={() => startAdminEdit('user', item)}>Edit</button>
-                    <button type="button" className="danger-btn" onClick={() => deleteAdminItem('user', item)}>Delete</button>
+                    <button type="button" className="icon-action-btn" onClick={() => startAdminEdit('user', item)} aria-label="Edit user"><span className="material-icons" aria-hidden="true">edit</span></button>
+                    <button type="button" className="icon-action-btn danger-icon" onClick={() => deleteAdminItem('user', item)} aria-label="Delete user"><span className="material-icons" aria-hidden="true">delete</span></button>
                   </div>
                 )}
               </article>
@@ -1171,8 +1207,8 @@ function AdminDashboard({ user, onHome }) {
                   <p>{industry.details || 'No details added.'}</p>
                   <small>Admin: {industry.admin_name || 'Not assigned'} | Branches: {industry.branch_count} | Users: {industry.user_count}</small>
                   <div className="button-row">
-                    <button type="button" className="secondary-btn" onClick={() => startAdminEdit('industry', industry)}>Edit</button>
-                    <button type="button" className="danger-btn" onClick={() => deleteAdminItem('industry', industry)}>Delete</button>
+                    <button type="button" className="icon-action-btn" onClick={() => startAdminEdit('industry', industry)} aria-label="Edit industry"><span className="material-icons" aria-hidden="true">edit</span></button>
+                    <button type="button" className="icon-action-btn danger-icon" onClick={() => deleteAdminItem('industry', industry)} aria-label="Delete industry"><span className="material-icons" aria-hidden="true">delete</span></button>
                   </div>
                 </article>
               ))}
@@ -1190,8 +1226,8 @@ function AdminDashboard({ user, onHome }) {
                   {formatAddressParts(branch) && <small>{formatAddressParts(branch)}</small>}
                   {branch.queue_paused && <small className="pause-note">Paused: {branch.queue_pause_reason || 'No reason saved'}</small>}
                   <div className="button-row">
-                    <button type="button" className="secondary-btn" onClick={() => startAdminEdit('branch', branch)}>Edit</button>
-                    <button type="button" className="danger-btn" onClick={() => deleteAdminItem('branch', branch)}>Delete</button>
+                    <button type="button" className="icon-action-btn" onClick={() => startAdminEdit('branch', branch)} aria-label="Edit branch"><span className="material-icons" aria-hidden="true">edit</span></button>
+                    <button type="button" className="icon-action-btn danger-icon" onClick={() => deleteAdminItem('branch', branch)} aria-label="Delete branch"><span className="material-icons" aria-hidden="true">delete</span></button>
                   </div>
                 </article>
               ))}

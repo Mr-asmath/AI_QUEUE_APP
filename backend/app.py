@@ -96,6 +96,7 @@ We collect only the data needed to create an account, manage queue activity, and
 - Industry and branch details: industry name, branch name, branch type, address fields, dashboard settings, role labels, user form fields, and admin-managed configuration.
 - Security and audit details: login events, logout events, role changes, password reset requests, admin decisions, browser/user-agent information, IP address, and app activity logs required for security and support.
 - Optional uploaded content: profile images, logos, and user form image/url fields when the app configuration asks for them.
+- Verification and messaging consent: phone numbers and email addresses may be used to send one-time verification codes by SMS or email when the user allows this app to send those messages.
 
 3. Data we do not collect
 The app does not request browser location permission. It does not access the camera, microphone, contacts, files, or precise GPS location unless a future feature clearly asks for separate permission and the user/admin enables it.
@@ -108,6 +109,7 @@ We use data to:
 - Show queue status, estimated wait, branch dashboards, provider dashboards, and admin reports.
 - Support profile images and organization logos.
 - Send queue notifications and password reset/admin approval workflows.
+- Send verification OTP messages to confirm the user's phone number or email address. Verification codes are temporary, private, and must not be shared with anyone.
 - Improve speed by caching only required current-user data.
 - Monitor service health, troubleshoot errors, detect abuse, and protect the system.
 
@@ -122,6 +124,8 @@ Users agree to provide accurate information, use the app only for lawful queue a
 
 8. Admin responsibilities
 Admins must configure branches, roles, service fields, pricing, and dashboard controls responsibly. Admins must protect user information, grant access only to required staff, and remove or deactivate accounts that no longer need access.
+
+Users can choose whether the app may send SMS/email verification messages. SMS delivery may use Firebase phone verification when configured; email delivery uses the configured app mail server. If a real provider is not configured in development, the app may display the code only to the current user for testing.
 
 9. Data retention
 Queue, profile, audit, notification, and configuration data may be retained while the account, branch, or industry is active and as needed for reporting, support, security, or legal compliance. Admins may delete or deactivate users, branches, and industries where supported by the app.
@@ -169,7 +173,17 @@ class User(db.Model):
     terms_accepted_at = db.Column(db.DateTime)
     device_consent = db.Column(db.Boolean)
     device_consent_at = db.Column(db.DateTime)
+    messaging_consent = db.Column(db.Boolean, default=False)
+    messaging_consent_at = db.Column(db.DateTime)
+    phone_verified_at = db.Column(db.DateTime)
+    email_verified_at = db.Column(db.DateTime)
     last_seen_at = db.Column(db.DateTime)
+    theme_mode = db.Column(db.String(20), default="light")
+    theme_1 = db.Column(db.String(20), default="#14b8a6")
+    theme_2 = db.Column(db.String(20), default="#2563eb")
+    font_color_1 = db.Column(db.String(20), default="#0f172a")
+    font_color_2 = db.Column(db.String(20), default="#64748b")
+    font_family = db.Column(db.String(160), default="Inter, Arial, sans-serif")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     industry = db.relationship("Industry", foreign_keys=[industry_id])
@@ -191,6 +205,27 @@ class User(db.Model):
         return check_password_hash(self.secret_password_hash, password)
 
 
+class VerificationCode(db.Model):
+    __tablename__ = "verification_codes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    channel = db.Column(db.String(20), nullable=False)
+    target = db.Column(db.String(160), nullable=False)
+    code_hash = db.Column(db.String(255), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+
+    def set_code(self, code):
+        self.code_hash = generate_password_hash(code)
+
+    def check_code(self, code):
+        return check_password_hash(self.code_hash, str(code or "").strip())
+
+
 class Industry(db.Model):
     __tablename__ = "industries"
 
@@ -204,6 +239,12 @@ class Industry(db.Model):
     branch_sharing_mode = db.Column(db.String(30), default="all")
     logo_url = db.Column(db.Text)
     logo_preset = db.Column(db.String(40), default="logo-1")
+    theme_mode = db.Column(db.String(20), default="light")
+    theme_1 = db.Column(db.String(20), default="#14b8a6")
+    theme_2 = db.Column(db.String(20), default="#2563eb")
+    font_color_1 = db.Column(db.String(20), default="#0f172a")
+    font_color_2 = db.Column(db.String(20), default="#64748b")
+    font_family = db.Column(db.String(160), default="Inter, Arial, sans-serif")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     admin = db.relationship("User", foreign_keys=[admin_id], post_update=True)
@@ -517,6 +558,55 @@ def send_default_password_email(user, password):
     return send_email(user.email, "Your AI Queue Automation default password", body)
 
 
+def generate_numeric_code(length):
+    return "".join(secrets.choice(string.digits) for _ in range(length))
+
+
+def send_verification_email(user, code):
+    body = (
+        f"Hello {user.name},\n\n"
+        "Use this verification code for AI Queue Automation:\n\n"
+        f"{code}\n\n"
+        "This code expires in 10 minutes. Do not share it with anyone.\n"
+    )
+    return send_email(user.email, "Your AI Queue Automation email verification code", body)
+
+
+def send_verification_sms(user, phone, code):
+    firebase_project_id = os.getenv("FIREBASE_PROJECT_ID")
+    firebase_api_key = os.getenv("FIREBASE_API_KEY")
+    if not firebase_project_id or not firebase_api_key:
+        app.logger.warning(
+            "SMS provider is not configured. Development phone OTP for %s is %s.",
+            phone,
+            code,
+        )
+        return False
+    # Firebase phone auth sends SMS from the client SDK after project setup. This backend
+    # keeps the same verification flow and uses the dev fallback until Firebase keys are added.
+    app.logger.info("Firebase SMS config is present for project %s; client SMS setup is required.", firebase_project_id)
+    return False
+
+
+def create_verification_code(user, channel, target):
+    length = 4 if channel == "phone" else 6
+    code = generate_numeric_code(length)
+    item = VerificationCode(
+        user_id=user.id,
+        channel=channel,
+        target=target,
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    )
+    item.set_code(code)
+    VerificationCode.query.filter_by(user_id=user.id, channel=channel, used_at=None).update(
+        {"used_at": datetime.utcnow()},
+        synchronize_session=False,
+    )
+    db.session.add(item)
+    db.session.flush()
+    return item, code
+
+
 def normalize_details(details):
     pairs = []
     for key, value in sorted((details or {}).items()):
@@ -603,6 +693,87 @@ def load_mongo_asset(value):
     if not item:
         return None
     return f"data:{item.get('content_type', 'image/png')};base64,{item.get('data', '')}"
+
+
+def mongo_setting_key(scope, scope_id, name):
+    return {"scope": scope, "scope_id": str(scope_id or "global"), "name": name}
+
+
+def get_mongo_setting(scope, scope_id, name, default=None):
+    if mongo_db is None:
+        return default
+    try:
+        item = mongo_db.app_settings.find_one(mongo_setting_key(scope, scope_id, name))
+    except Exception:
+        return default
+    return item.get("value", default) if item else default
+
+
+def set_mongo_setting(scope, scope_id, name, value):
+    if mongo_db is None:
+        return
+    try:
+        mongo_db.app_settings.update_one(
+            mongo_setting_key(scope, scope_id, name),
+            {
+                "$set": {"value": value, "updated_at": datetime.utcnow()},
+                "$setOnInsert": {"created_at": datetime.utcnow()},
+            },
+            upsert=True,
+        )
+    except Exception:
+        pass
+
+
+def mirror_mongo_document(collection, key, document):
+    if mongo_db is None:
+        return
+    try:
+        mongo_db[collection].update_one(
+            key,
+            {"$set": {**document, "updated_at": datetime.utcnow()}, "$setOnInsert": {"created_at": datetime.utcnow()}},
+            upsert=True,
+        )
+    except Exception:
+        pass
+
+
+def current_terms_text():
+    return get_mongo_setting("global", "global", "security_terms", SECURITY_TERMS_TEXT)
+
+
+def current_theme_for(user=None):
+    main_admin = User.query.filter_by(role="main_admin").order_by(User.id).first()
+    base = {}
+    if main_admin:
+        base = {
+            "mode": getattr(main_admin, "theme_mode", None) or "light",
+            "theme_1": getattr(main_admin, "theme_1", None) or "#14b8a6",
+            "theme_2": getattr(main_admin, "theme_2", None) or "#2563eb",
+            "font_color_1": getattr(main_admin, "font_color_1", None) or "#0f172a",
+            "font_color_2": getattr(main_admin, "font_color_2", None) or "#64748b",
+            "font_family": getattr(main_admin, "font_family", None) or "Inter, Arial, sans-serif",
+        }
+    base = {**base, **(get_mongo_setting("global", "global", "theme", {}) or {})}
+    if user and user.industry:
+        industry_theme = {
+            "mode": user.industry.theme_mode or base.get("mode", "light"),
+            "theme_1": user.industry.theme_1 or base.get("theme_1", "#14b8a6"),
+            "theme_2": user.industry.theme_2 or base.get("theme_2", "#2563eb"),
+            "font_color_1": user.industry.font_color_1 or base.get("font_color_1", "#0f172a"),
+            "font_color_2": user.industry.font_color_2 or base.get("font_color_2", "#64748b"),
+            "font_family": user.industry.font_family or base.get("font_family", "Inter, Arial, sans-serif"),
+        }
+        industry_theme = {**industry_theme, **(get_mongo_setting("industry", user.industry_id, "theme", {}) or {})}
+        base = {**base, **industry_theme}
+    return {
+        "mode": base.get("mode", "light"),
+        "theme_1": base.get("theme_1", "#14b8a6"),
+        "theme_2": base.get("theme_2", "#2563eb"),
+        "font_color_1": base.get("font_color_1", "#0f172a"),
+        "font_color_2": base.get("font_color_2", "#64748b"),
+        "font_family": base.get("font_family", "Inter, Arial, sans-serif"),
+    }
 
 
 def record_event(event_type, message, user=None, token=None, industry_id=None, branch_id=None):
@@ -748,7 +919,13 @@ def serialize_user(user):
         "industry_logo_preset": user.industry.logo_preset if user.industry else "logo-1",
         "must_reset_password": user.must_reset_password,
         "terms_accepted": bool(user.terms_accepted_at),
-        "terms_text": SECURITY_TERMS_TEXT,
+        "terms_text": current_terms_text(),
+        "messaging_consent": bool(user.messaging_consent),
+        "phone_verified": bool(user.phone_verified_at),
+        "phone_verified_at": user.phone_verified_at.isoformat() + "Z" if user.phone_verified_at else None,
+        "email_verified": bool(user.email_verified_at),
+        "email_verified_at": user.email_verified_at.isoformat() + "Z" if user.email_verified_at else None,
+        "theme": current_theme_for(user),
         "device_consent": user.device_consent,
         "device_consent_required": False,
         "last_seen_at": user.last_seen_at.isoformat() + "Z" if user.last_seen_at else None,
@@ -772,7 +949,7 @@ def serialize_branch(branch):
         "pincode": branch.pincode,
         "latitude": branch.latitude,
         "longitude": branch.longitude,
-        "logo_url": branch.industry.logo_url,
+        "logo_url": load_mongo_asset(branch.industry.logo_url),
         "logo_preset": branch.industry.logo_preset or "logo-1",
         "dashboard_config": branch_config(branch),
         "user_schema": user_schema(branch),
@@ -795,7 +972,7 @@ def serialize_admin_industry(industry):
         "details": industry.details,
         "terms": industry.terms,
         "branch_sharing_mode": industry.branch_sharing_mode,
-        "logo_url": industry.logo_url,
+        "logo_url": load_mongo_asset(industry.logo_url),
         "logo_preset": industry.logo_preset or "logo-1",
         "admin_id": industry.admin_id,
         "admin_name": industry.admin.name if industry.admin else None,
@@ -1081,8 +1258,9 @@ def geocode_address():
 def register():
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
-    if not data.get("name") or not email or not data.get("password"):
-        return jsonify({"success": False, "error": "Name, email, and password are required"}), 400
+    phone = (data.get("phone") or "").strip()
+    if not data.get("name") or not email or not phone or not data.get("password"):
+        return jsonify({"success": False, "error": "Name, email, phone, and password are required"}), 400
     if not data.get("terms_accepted"):
         return jsonify({"success": False, "error": "Please accept the terms and data security policy"}), 400
     if User.query.filter_by(email=email).first():
@@ -1092,9 +1270,11 @@ def register():
         name=data["name"].strip(),
         email=email,
         user_code=generate_user_code(),
-        phone=data.get("phone"),
+        phone=phone,
         role="user",
         terms_accepted_at=datetime.utcnow(),
+        messaging_consent=bool(data.get("messaging_consent")),
+        messaging_consent_at=datetime.utcnow() if data.get("messaging_consent") else None,
     )
     user.set_password(data["password"])
     db.session.add(user)
@@ -1116,6 +1296,9 @@ def login():
     record_event("login", f"{user.name} logged in.", user=user)
     db.session.commit()
     payload = serialize_user(user)
+    mirror_mongo_document("users", {"sql_id": user.id}, payload)
+    if user.industry:
+        mirror_mongo_document("industries", {"sql_id": user.industry.id}, serialize_admin_industry(user.industry))
     cache_set_json(f"user:{user.id}", payload, ttl_seconds=300)
     return jsonify({"success": True, "user": payload}), 200
 
@@ -1144,9 +1327,140 @@ def me():
     return jsonify({"success": True, "user": payload}), 200
 
 
+@app.route("/api/auth/verification/send", methods=["POST"])
+@login_required
+def send_verification_code():
+    user = current_user()
+    data = request.get_json() or {}
+    channel = data.get("channel")
+    if channel not in ("phone", "email"):
+        return jsonify({"success": False, "error": "Verification channel must be phone or email"}), 400
+    if not bool(user.messaging_consent):
+        return jsonify({"success": False, "error": "Please allow this app to send verification SMS/email first"}), 400
+    if channel == "phone":
+        target = (data.get("phone") or user.phone or "").strip()
+        if not target:
+            return jsonify({"success": False, "error": "Phone number is required"}), 400
+        user.phone = target
+        user.phone_verified_at = None
+    else:
+        target = user.email
+    item, code = create_verification_code(user, channel, target)
+    sent = send_verification_sms(user, target, code) if channel == "phone" else send_verification_email(user, code)
+    db.session.commit()
+    cache_delete(f"user:{user.id}")
+    response = {
+        "success": True,
+        "channel": channel,
+        "target": target,
+        "expires_at": item.expires_at.isoformat() + "Z",
+        "sent": sent,
+    }
+    if not sent or app.debug:
+        response["dev_code"] = code
+    return jsonify(response), 200
+
+
+@app.route("/api/auth/verification/verify", methods=["POST"])
+@login_required
+def verify_contact_code():
+    user = current_user()
+    data = request.get_json() or {}
+    channel = data.get("channel")
+    code = "".join(str(data.get("code") or "").split())
+    if channel not in ("phone", "email"):
+        return jsonify({"success": False, "error": "Verification channel must be phone or email"}), 400
+    length = 4 if channel == "phone" else 6
+    if len(code) != length or not code.isdigit():
+        return jsonify({"success": False, "error": f"Enter the {length}-digit verification code"}), 400
+    now = datetime.utcnow()
+    item = (
+        VerificationCode.query.filter_by(user_id=user.id, channel=channel, used_at=None)
+        .order_by(VerificationCode.created_at.desc())
+        .first()
+    )
+    if not item or item.expires_at < now:
+        return jsonify({"success": False, "error": "Verification code expired. Send a new code."}), 400
+    if not item.check_code(code):
+        return jsonify({"success": False, "error": "Invalid verification code"}), 400
+    item.used_at = now
+    if channel == "phone":
+        user.phone = item.target
+        user.phone_verified_at = now
+    else:
+        user.email_verified_at = now
+    db.session.commit()
+    payload = serialize_user(user)
+    cache_set_json(f"user:{user.id}", payload, ttl_seconds=300)
+    mirror_mongo_document("users", {"sql_id": user.id}, payload)
+    return jsonify({"success": True, "user": payload}), 200
+
+
+@app.route("/api/auth/messaging-consent", methods=["POST"])
+@login_required
+def update_messaging_consent():
+    user = current_user()
+    data = request.get_json() or {}
+    user.messaging_consent = bool(data.get("allow"))
+    user.messaging_consent_at = datetime.utcnow() if user.messaging_consent else None
+    db.session.commit()
+    payload = serialize_user(user)
+    cache_set_json(f"user:{user.id}", payload, ttl_seconds=300)
+    return jsonify({"success": True, "user": payload}), 200
+
+
 @app.route("/api/security/terms")
 def security_terms():
-    return jsonify({"success": True, "terms": SECURITY_TERMS_TEXT}), 200
+    return jsonify({"success": True, "terms": current_terms_text()}), 200
+
+
+@app.route("/api/security/terms", methods=["PUT"])
+@login_required
+@role_required("main_admin")
+def update_security_terms():
+    data = request.get_json() or {}
+    terms = (data.get("terms") or "").strip()
+    if not terms:
+        return jsonify({"success": False, "error": "Terms text is required"}), 400
+    set_mongo_setting("global", "global", "security_terms", terms)
+    record_event("terms_updated", f"{current_user().name} updated app terms and conditions.", user=current_user())
+    db.session.commit()
+    return jsonify({"success": True, "terms": terms}), 200
+
+
+@app.route("/api/theme", methods=["GET", "PUT"])
+@login_required
+def app_theme():
+    user = current_user()
+    if request.method == "GET":
+        return jsonify({"success": True, "theme": current_theme_for(user)}), 200
+    if user.role not in ("main_admin", "industry_admin"):
+        return jsonify({"success": False, "error": "Theme settings are admin-only"}), 403
+    data = request.get_json() or {}
+    theme = {
+        "mode": data.get("mode") if data.get("mode") in ("light", "dark") else "light",
+        "theme_1": data.get("theme_1") or "#14b8a6",
+        "theme_2": data.get("theme_2") or "#2563eb",
+        "font_color_1": data.get("font_color_1") or "#0f172a",
+        "font_color_2": data.get("font_color_2") or "#64748b",
+        "font_family": data.get("font_family") or "Inter, Arial, sans-serif",
+    }
+    scope = "global" if user.role == "main_admin" else "industry"
+    scope_id = "global" if user.role == "main_admin" else user.industry_id
+    target = user if user.role == "main_admin" else user.industry
+    if target is not None:
+        target.theme_mode = theme["mode"]
+        target.theme_1 = theme["theme_1"]
+        target.theme_2 = theme["theme_2"]
+        target.font_color_1 = theme["font_color_1"]
+        target.font_color_2 = theme["font_color_2"]
+        target.font_family = theme["font_family"]
+    set_mongo_setting(scope, scope_id, "theme", theme)
+    record_event("theme_updated", f"{user.name} updated {scope} theme settings.", user=user)
+    db.session.commit()
+    payload = current_theme_for(user)
+    cache_delete(f"user:{user.id}")
+    return jsonify({"success": True, "theme": payload}), 200
 
 
 @app.route("/api/security/device-consent", methods=["POST"])
@@ -1183,7 +1497,7 @@ def admin_secret_devices():
         {
             "success": True,
             "security": {
-                "terms": SECURITY_TERMS_TEXT,
+                "terms": current_terms_text(),
                 "encryption": "Device audit fields are encrypted at rest with an app-level encryption key before display.",
                 "headers": ["X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"],
             },
@@ -1366,6 +1680,7 @@ def update_profile():
     phone = (data.get("phone") or "").strip()
     if not name:
         return jsonify({"success": False, "error": "Name is required"}), 400
+    phone_changed = user.phone != phone
     user.name = name
     user.phone = phone
     user.address = (data.get("address") or "").strip() or None
@@ -1376,6 +1691,8 @@ def update_profile():
     user.designation = (data.get("designation") or "").strip() or None
     user.emergency_contact = (data.get("emergency_contact") or "").strip() or None
     user.personal_details = (data.get("personal_details") or "").strip() or None
+    if phone_changed:
+        user.phone_verified_at = None
     user.avatar_preset = (data.get("avatar_preset") or "face-1").strip()
     user.avatar_url = store_mongo_asset("user", user.id, "avatar", (data.get("avatar_url") or "").strip()) or None
     if user.role in ("industry_admin", "main_admin") and user.industry:
@@ -1647,7 +1964,9 @@ def admin_manage_user(user_id):
         return jsonify({"success": False, "error": error}), 400
     record_event("admin_user_updated", f"{admin.name} updated user {item.name}.", user=admin, industry_id=item.industry_id, branch_id=item.branch_id)
     db.session.commit()
-    return jsonify({"success": True, "user": serialize_admin_user_directory_entry(item)}), 200
+    payload = serialize_admin_user_directory_entry(item)
+    mirror_mongo_document("users", {"sql_id": item.id}, payload)
+    return jsonify({"success": True, "user": payload}), 200
 
 
 @app.route("/api/admin/industries/<int:industry_id>", methods=["PUT", "DELETE"])
@@ -1683,7 +2002,9 @@ def admin_manage_industry(industry_id):
     industry.admin_id = int(data["admin_id"]) if data.get("admin_id") not in (None, "") else None
     record_event("admin_industry_updated", f"{admin.name} updated industry {industry.name}.", user=admin, industry_id=industry.id)
     db.session.commit()
-    return jsonify({"success": True, "industry": serialize_admin_industry(industry)}), 200
+    payload = serialize_admin_industry(industry)
+    mirror_mongo_document("industries", {"sql_id": industry.id}, payload)
+    return jsonify({"success": True, "industry": payload}), 200
 
 
 @app.route("/api/admin/branches/<int:branch_id>", methods=["PUT", "DELETE"])
@@ -1720,7 +2041,9 @@ def admin_manage_branch(branch_id):
         branch.user_schema_json = dumps(data.get("user_schema") or [])
     record_event("admin_branch_updated", f"{admin.name} updated branch {branch.name}.", user=admin, branch_id=branch.id, industry_id=branch.industry_id)
     db.session.commit()
-    return jsonify({"success": True, "branch": serialize_branch(branch)}), 200
+    payload = serialize_branch(branch)
+    mirror_mongo_document("branches", {"sql_id": branch.id}, payload)
+    return jsonify({"success": True, "branch": payload}), 200
 
 
 @app.route("/api/admin/event-logs")
@@ -2766,6 +3089,14 @@ def ensure_schema_updates():
         statements.append("ALTER TABLE users ADD COLUMN device_consent BOOLEAN")
     if "device_consent_at" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN device_consent_at DATETIME")
+    if "messaging_consent" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN messaging_consent BOOLEAN DEFAULT 0")
+    if "messaging_consent_at" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN messaging_consent_at DATETIME")
+    if "phone_verified_at" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN phone_verified_at DATETIME")
+    if "email_verified_at" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN email_verified_at DATETIME")
     if "address" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN address TEXT")
     if "area" not in user_columns:
@@ -2784,6 +3115,18 @@ def ensure_schema_updates():
         statements.append("ALTER TABLE users ADD COLUMN personal_details TEXT")
     if "last_seen_at" not in user_columns:
         statements.append("ALTER TABLE users ADD COLUMN last_seen_at DATETIME")
+    if "theme_mode" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN theme_mode VARCHAR(20) DEFAULT 'light'")
+    if "theme_1" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN theme_1 VARCHAR(20) DEFAULT '#14b8a6'")
+    if "theme_2" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN theme_2 VARCHAR(20) DEFAULT '#2563eb'")
+    if "font_color_1" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN font_color_1 VARCHAR(20) DEFAULT '#0f172a'")
+    if "font_color_2" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN font_color_2 VARCHAR(20) DEFAULT '#64748b'")
+    if "font_family" not in user_columns:
+        statements.append("ALTER TABLE users ADD COLUMN font_family VARCHAR(160) DEFAULT 'Inter, Arial, sans-serif'")
     token_columns = {column["name"] for column in inspector.get_columns("tokens")} if inspector.has_table("tokens") else set()
     if "display_name" not in token_columns:
         statements.append("ALTER TABLE tokens ADD COLUMN display_name VARCHAR(160)")
@@ -2801,6 +3144,18 @@ def ensure_schema_updates():
         statements.append("ALTER TABLE industries ADD COLUMN logo_url TEXT")
     if "logo_preset" not in industry_columns:
         statements.append("ALTER TABLE industries ADD COLUMN logo_preset VARCHAR(40) DEFAULT 'logo-1'")
+    if "theme_mode" not in industry_columns:
+        statements.append("ALTER TABLE industries ADD COLUMN theme_mode VARCHAR(20) DEFAULT 'light'")
+    if "theme_1" not in industry_columns:
+        statements.append("ALTER TABLE industries ADD COLUMN theme_1 VARCHAR(20) DEFAULT '#14b8a6'")
+    if "theme_2" not in industry_columns:
+        statements.append("ALTER TABLE industries ADD COLUMN theme_2 VARCHAR(20) DEFAULT '#2563eb'")
+    if "font_color_1" not in industry_columns:
+        statements.append("ALTER TABLE industries ADD COLUMN font_color_1 VARCHAR(20) DEFAULT '#0f172a'")
+    if "font_color_2" not in industry_columns:
+        statements.append("ALTER TABLE industries ADD COLUMN font_color_2 VARCHAR(20) DEFAULT '#64748b'")
+    if "font_family" not in industry_columns:
+        statements.append("ALTER TABLE industries ADD COLUMN font_family VARCHAR(160) DEFAULT 'Inter, Arial, sans-serif'")
     branch_columns = {column["name"] for column in inspector.get_columns("branches")} if inspector.has_table("branches") else set()
     if "address" not in branch_columns:
         statements.append("ALTER TABLE branches ADD COLUMN address TEXT")

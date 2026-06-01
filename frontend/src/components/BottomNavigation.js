@@ -19,6 +19,7 @@ const fallbackIcons = {
   notifications: 'notifications',
   account: 'manage_accounts',
   logo: 'image',
+  theme: 'palette',
   'industry-settings': 'tune',
   password: 'lock_reset',
   'secret-password': 'admin_panel_settings',
