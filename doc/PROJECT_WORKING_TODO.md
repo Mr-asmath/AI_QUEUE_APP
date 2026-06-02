@@ -1,4 +1,19 @@
+<div align="center">
+
+  <img src="https://capsule-render.vercel.app/api?type=rect&height=120&color=0:111827,50:2563EB,100:14B8A6&text=Project%20Working%20Board&fontColor=ffffff&fontSize=34&animation=twinkling" alt="Project Working Board" />
+
+  <br />
+
+  <img src="https://img.shields.io/badge/Status-Active-22C55E?style=for-the-badge" alt="Active" />
+  <img src="https://img.shields.io/badge/Frontend-Tasks-38BDF8?style=for-the-badge" alt="Frontend Tasks" />
+  <img src="https://img.shields.io/badge/Backend-Tasks-8B5CF6?style=for-the-badge" alt="Backend Tasks" />
+  <img src="https://img.shields.io/badge/Deployment-Checklist-F59E0B?style=for-the-badge" alt="Deployment Checklist" />
+
+</div>
+
 # AI Queue App Working Notes and Todo Tree
+
+> Compact board for completed work, pending tasks, deployment checks, and documentation reminders.
 
 ## Done
 

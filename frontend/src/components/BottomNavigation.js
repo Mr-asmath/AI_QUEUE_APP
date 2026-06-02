@@ -21,6 +21,7 @@ const fallbackIcons = {
   logo: 'image',
   theme: 'palette',
   'industry-settings': 'tune',
+  'tv-cast': 'cast',
   password: 'lock_reset',
   'secret-password': 'admin_panel_settings',
   session: 'devices',

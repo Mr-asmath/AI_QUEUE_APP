@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiPath } from '../config';
 import { roleLabelOptions, roleLabelsFor } from '../roleLabels';
 import BottomNavigation from './BottomNavigation';
+import TvCastSettings from './TvCastSettings';
 
 const branchTypes = [
   { value: 'hospital', label: 'Hospital' },
@@ -549,6 +550,7 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
     { id: 'password', label: 'Change Password' },
     ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'logo', label: 'App Logo' }] : []),
     ...(user.role === 'industry_admin' || user.role === 'main_admin' ? [{ id: 'theme', label: 'Theme' }] : []),
+    ...(['queue_operator', 'industry_admin', 'main_admin'].includes(user.role) ? [{ id: 'tv-cast', label: 'TV Cast' }] : []),
     ...(user.role === 'industry_admin' ? [{ id: 'industry-settings', label: 'Industry Settings' }] : []),
     ...(user.role === 'main_admin' ? [{ id: 'secret-password', label: 'Secret Password' }] : []),
     { id: 'session', label: 'Account Session' }
@@ -1013,6 +1015,10 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
             </section>
           )}
           </>
+        )}
+
+        {activeSection === 'tv-cast' && ['queue_operator', 'industry_admin', 'main_admin'].includes(user.role) && (
+          <TvCastSettings user={user} />
         )}
 
         {activeSection === 'password' && (

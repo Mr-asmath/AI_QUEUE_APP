@@ -1,70 +1,62 @@
-# Getting Started with Create React App
+<div align="center">
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=150&color=0:38BDF8,50:14B8A6,100:2563EB&text=AI%20Queue%20Frontend&fontColor=ffffff&fontSize=36&fontAlignY=38&animation=fadeIn" alt="AI Queue Frontend" />
 
-## Available Scripts
+  <br />
 
-In the project directory, you can run:
+  <img src="https://img.shields.io/badge/React-19-38BDF8?style=for-the-badge&logo=react&logoColor=white" alt="React" />
+  <img src="https://img.shields.io/badge/Create%20React%20App-5-09D3AC?style=for-the-badge&logo=createreactapp&logoColor=white" alt="Create React App" />
+  <img src="https://img.shields.io/badge/UI-TV%20Cast%20Ready-7C3AED?style=for-the-badge" alt="TV Cast Ready" />
+  <img src="https://img.shields.io/badge/API-Flask%20Backend-111827?style=for-the-badge&logo=flask&logoColor=white" alt="Flask Backend" />
 
-### `npm start`
+</div>
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+# Frontend App
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+> React interface for AI Queue Automation: login, registration, dashboards, profile settings, TV Cast, queue tokens, notifications, themes, and public display screens.
 
-### `npm test`
+## Quick Start
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```powershell
+cd frontend
+npm install
+npm start
+```
 
-### `npm run build`
+Open:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```text
+http://localhost:3000
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Useful Commands
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+| Command | Purpose |
+| --- | --- |
+| `npm start` | Start development server |
+| `npm test` | Run React tests |
+| `npm run build` | Build production frontend |
 
-### `npm run eject`
+## Environment
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+The frontend reads the backend origin from:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```text
+REACT_APP_API_ORIGIN=http://localhost:5000
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Docker passes this value during the frontend image build.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Main UI Areas
 
-## Learn More
+- Auth pages and terms modal
+- User dashboard
+- Admin/operator dashboard
+- Service provider dashboard
+- Profile and theme settings
+- TV Cast settings
+- Public TV display route: `/tv-display/:branchId/:counterId`
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Notes
 
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This app was bootstrapped with Create React App, but the README is project-focused so new developers can work faster.

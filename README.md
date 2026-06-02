@@ -14,6 +14,27 @@
 
 ---
 
+<div align="center">
+
+  <a href="#quick-start-with-docker"><img src="https://img.shields.io/badge/Start-Docker%20Quickstart-14B8A6?style=flat-square" alt="Docker quickstart" /></a>
+  <a href="#demo-accounts"><img src="https://img.shields.io/badge/Login-Demo%20Accounts-2563EB?style=flat-square" alt="Demo accounts" /></a>
+  <a href="TV_CAST_SETUP.md"><img src="https://img.shields.io/badge/New-TV%20Cast%20Mode-7C3AED?style=flat-square" alt="TV Cast mode" /></a>
+  <a href="RUNNING.md"><img src="https://img.shields.io/badge/Docs-Running%20Commands-F97316?style=flat-square" alt="Running commands" /></a>
+
+</div>
+
+<details open>
+<summary><strong>Feature Highlights</strong></summary>
+
+- Multi-role queue workflow for users, operators, service providers, industry admins, and main admins.
+- Docker stack with backend, frontend, MongoDB, Redis, mongo-express, Prometheus, and n8n.
+- Profile images, app logos, editable terms, theme settings, verification UI, and TV Cast display mode.
+- Public TV display route for HDMI, smart TV browsers, mini PCs, tablets, Raspberry Pi, and custom display hardware.
+
+</details>
+
+---
+
 ## Project Overview
 
 AI Queue App is a multi-industry queue management system with a React frontend and Flask backend. It supports hospitals, schools/colleges, banks, hotels, offices/companies, government offices, and custom industries.

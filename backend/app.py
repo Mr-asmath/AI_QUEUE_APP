@@ -2488,6 +2488,68 @@ def queue_status():
     ), 200
 
 
+@app.route("/api/tv-display/<int:branch_id>/<counter_id>")
+def tv_display_status(branch_id, counter_id):
+    branch = db.session.get(Branch, branch_id)
+    if not branch:
+        return jsonify({"success": False, "error": "Display branch not found"}), 404
+
+    current = (
+        Token.query.filter(
+            Token.branch_id == branch.id,
+            Token.status.in_(("customer_in", "allocated")),
+        )
+        .order_by(
+            case((Token.status == "allocated", 0), else_=1),
+            Token.customer_in_at.desc(),
+            Token.created_at.asc(),
+        )
+        .first()
+    )
+    next_token = (
+        Token.query.filter(
+            Token.branch_id == branch.id,
+            Token.status.in_(("requested", "verified")),
+        )
+        .order_by(Token.emergency_accepted.desc(), Token.token_number.asc(), Token.created_at.asc())
+        .first()
+    )
+    recent = (
+        Token.query.filter(
+            Token.branch_id == branch.id,
+            Token.status.in_(("completed", "cancelled", "expired")),
+        )
+        .order_by(Token.completed_at.desc(), Token.created_at.desc())
+        .first()
+    )
+    provider_name = current.provider.name if current and current.provider else None
+    status = "Paused" if branch.queue_paused else ("Serving" if current else "Waiting")
+    return jsonify(
+        {
+            "success": True,
+            "display": {
+                "branch_id": branch.id,
+                "branch_name": branch.name,
+                "department": branch.other_type_name or branch.branch_type or branch.name,
+                "counter": str(counter_id),
+                "current_token": current.token_code if current else "--",
+                "next_token": next_token.token_code if next_token else "--",
+                "recent_token": recent.token_code if recent else "--",
+                "service_provider": provider_name or "Service Desk",
+                "status": status,
+                "queue_paused": bool(branch.queue_paused),
+                "queue_pause_reason": branch.queue_pause_reason,
+                "message": (
+                    f"Token {current.token_code} please proceed to Counter {counter_id}"
+                    if current
+                    else "Please wait for your token number."
+                ),
+                "last_sync": datetime.utcnow().isoformat() + "Z",
+            },
+        }
+    ), 200
+
+
 @app.route("/api/operator/queue")
 @login_required
 @role_required("queue_operator", "industry_admin", "main_admin")

@@ -1,4 +1,31 @@
+<div align="center">
+
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=150&color=0:14B8A6,55:2563EB,100:7C3AED&text=Run%20AI%20Queue%20Automation&fontColor=ffffff&fontSize=34&fontAlignY=38&animation=fadeIn" alt="Run AI Queue Automation" />
+
+  <br />
+
+  <img src="https://img.shields.io/badge/Mode-Local%20Run-14B8A6?style=for-the-badge" alt="Local Run" />
+  <img src="https://img.shields.io/badge/Docker-Ready-2563EB?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Ready" />
+  <img src="https://img.shields.io/badge/Backend-Flask-111827?style=for-the-badge&logo=flask&logoColor=white" alt="Flask" />
+  <img src="https://img.shields.io/badge/Frontend-React-38BDF8?style=for-the-badge&logo=react&logoColor=white" alt="React" />
+
+</div>
+
 # AI Queue Automation - Running Commands
+
+> Fast command guide for local development, Docker, Kubernetes, automation, and common fixes.
+
+<details open>
+<summary><strong>Quick Links</strong></summary>
+
+- Demo accounts
+- Run locally without Docker
+- Docker Compose stack
+- Kubernetes commands
+- n8n automation
+- Troubleshooting
+
+</details>
 
 This project has a Flask backend and a React frontend.
 

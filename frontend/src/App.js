@@ -10,10 +10,12 @@ import ResetPassword from './components/ResetPassword';
 import ProfilePage from './components/ProfilePage';
 import QueueLoader from './components/QueueLoader';
 import WelcomePage from './components/WelcomePage';
+import TVDisplayPage from './components/TVDisplayPage';
 import { apiPath } from './config';
 
 function App() {
   const initialResetToken = new URLSearchParams(window.location.search).get('reset_token');
+  const tvDisplayMatch = window.location.pathname.match(/^\/tv-display\/([^/]+)\/([^/]+)/);
   const [currentView, setCurrentView] = useState(initialResetToken ? 'reset-password' : 'login');
   const [resetToken, setResetToken] = useState(initialResetToken);
   const [user, setUser] = useState(null);
@@ -122,6 +124,10 @@ function App() {
     applyTheme(updatedUser.theme);
     setUser(updatedUser);
   };
+
+  if (tvDisplayMatch) {
+    return <TVDisplayPage branchId={tvDisplayMatch[1]} counterId={tvDisplayMatch[2]} />;
+  }
 
   if (showWelcome) {
     return <WelcomePage onDone={() => setShowWelcome(false)} />;
