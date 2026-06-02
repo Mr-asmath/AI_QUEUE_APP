@@ -103,6 +103,10 @@ function WelcomePage({ onDone }) {
     document.getElementById('tv-cast-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <main className="welcome-page landing-page" aria-label="AI Queue landing page">
       <section className="landing-hero">
@@ -113,7 +117,7 @@ function WelcomePage({ onDone }) {
             <img src={logoSrc} alt="" />
             <span>AI Queue</span>
           </div>
-          <button type="button" className="landing-nav-action" onClick={onDone}>Login</button>
+          <button type="button" className="landing-nav-action" onClick={onDone}>Get Started</button>
         </nav>
 
         <div className="hero-grid">
@@ -368,6 +372,10 @@ function WelcomePage({ onDone }) {
         ))}
         <span>Produced by Callback</span>
       </footer>
+
+      <button type="button" className="landing-top-button" onClick={scrollToTop} aria-label="Move to top">
+        ↑
+      </button>
     </main>
   );
 }

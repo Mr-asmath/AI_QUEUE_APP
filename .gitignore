@@ -4,3 +4,5 @@ __pycache__/
 .env
 backend/instance/
 frontend/build/
+.vercel
+.env*
