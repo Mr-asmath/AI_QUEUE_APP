@@ -109,18 +109,53 @@ VERCEL_ORG_ID
 VERCEL_PROJECT_ID
 ```
 
-Get values:
+Important: if `VERCEL_TOKEN` is missing, GitHub Actions fails with:
 
-```powershell
-vercel project ls
+```text
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
 ```
-
-Or check `.vercel/project.json` after `vercel link`.
 
 Create a Vercel token from:
 
 ```text
 https://vercel.com/account/tokens
+```
+
+Add it in GitHub:
+
+```text
+Repository -> Settings -> Secrets and variables -> Actions -> New repository secret
+```
+
+Secret name:
+
+```text
+VERCEL_TOKEN
+```
+
+Secret value:
+
+```text
+Paste the Vercel token
+```
+
+Get project values after linking the project:
+
+```powershell
+cd E:\Projects\Live\AI-Queue-App
+vercel link
+Get-Content .vercel\project.json
+```
+
+Copy values:
+
+- `orgId` -> GitHub secret `VERCEL_ORG_ID`
+- `projectId` -> GitHub secret `VERCEL_PROJECT_ID`
+
+You can also view linked project information:
+
+```powershell
+vercel project ls
 ```
 
 After secrets are added, every push to `main` or `master` will build and deploy the frontend to Vercel.
