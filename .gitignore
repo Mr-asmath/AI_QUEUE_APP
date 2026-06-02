@@ -1,4 +1,5 @@
 node_modules/
+frontend/node_modules_broken_*/
 __pycache__/
 *.pyc
 .env
