@@ -18,9 +18,9 @@ services:
       - key: AUTOMATION_API_KEY
         generateValue: true
       - key: FRONTEND_URL
-        value: https://mr-asmath.github.io/AI_QUEUE_APP
+        value: https://ai-queue-app.vercel.app
       - key: CORS_ORIGINS
-        value: https://mr-asmath.github.io
+        value: https://ai-queue-app.vercel.app,https://mr-asmath.github.io
       - key: SESSION_COOKIE_SAMESITE
         value: None
       - key: SESSION_COOKIE_SECURE
