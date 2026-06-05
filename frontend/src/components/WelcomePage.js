@@ -154,11 +154,14 @@ function WelcomePage({ onDone }) {
                 <span>A104</span>
                 <span>A105</span>
               </div>
-              <div className="animated-queue-line">
-                <i />
-                <i />
-                <i />
-                <i />
+              <div className="animated-queue-line" aria-hidden="true">
+                <span className="queue-counter-point">Desk</span>
+                {['A103', 'A104', 'A105', 'A106'].map((token) => (
+                  <span className="queue-person" key={token}>
+                    <b>{token}</b>
+                    <i />
+                  </span>
+                ))}
               </div>
             </div>
           </div>
