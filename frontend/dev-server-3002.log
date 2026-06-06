@@ -1,0 +1,281 @@
+
+> frontend2@0.1.0 start
+> react-scripts start
+
+Starting the development server...
+
+Compiled successfully!
+
+You can now view frontend2 in the browser.
+
+  Local:            http://localhost:3002
+  On Your Network:  http://10.24.54.130:3002
+
+Note that the development build is not optimized.
+To create a production build, use npm run build.
+
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Failed to compile.
+
+[eslint] 
+src\components\WelcomePage.js
+Syntax error: Expected corresponding JSX closing tag for <h2>. (133:42) (133:42)
+[1m[31mERROR[39m[22m in [1m./src/components/WelcomePage.js[39m[22m
+Module build failed (from ./node_modules/babel-loader/lib/index.js):
+SyntaxError: C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\src\components\WelcomePage.js: Expected corresponding JSX closing tag for <h2>. (133:42)
+
+[0m [90m 131 |[39m           [33m<[39m[33mdiv[39m className[33m=[39m[32m"hero-copy reveal-up"[39m[33m>[39m
+ [90m 132 |[39m             [33m<[39m[33mspan[39m className[33m=[39m[32m"hero-kicker"[39m[33m>[39m[33mIntelligent[39m queue automation[33m<[39m[33m/[39m[33mspan[39m[33m>[39m
+[31m[1m>[22m[39m[90m 133 |[39m             [33m<[39m[33mh2[39m[33m>[39m[33mAI[39m [33mQueue[39m [33mManagement[39m [33mSystem[39m[33m<[39m[33m/[39m[33mh1[39m[33m>[39m
+ [90m     |[39m                                           [31m[1m^[22m[39m
+ [90m 134 |[39m             [33m<[39m[33mp[39m className[33m=[39m[32m"hero-subtitle"[39m[33m>[39m[33mReduce[39m waiting time[33m,[39m manage tokens[33m,[39m and improve customer flow [36mwith[39m intelligent queue automation[33m.[39m[33m<[39m[33m/[39m[33mp[39m[33m>[39m
+ [90m 135 |[39m             [33m<[39m[33mp[39m className[33m=[39m[32m"hero-description"[39m[33m>[39m
+ [90m 136 |[39m               [33mA[39m modern queue management platform designed [36mfor[39m hospitals[33m,[39m banks[33m,[39m schools[33m,[39m service centers[33m,[39m offices[33m,[39m clinics[33m,[39m salons[33m,[39m and enterprises[33m.[39m[0m
+    at constructor (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+    at FlowParserMixin.raise (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:6599:19)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4727:16)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElement (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4749:17)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4759:19)
+    at FlowParserMixin.parseExprSubscripts (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+    at FlowParserMixin.parseUpdate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+    at FlowParserMixin.parseMaybeUnary (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+    at FlowParserMixin.parseMaybeUnaryOrPrivate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+    at FlowParserMixin.parseExprOps (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+    at FlowParserMixin.parseMaybeConditional (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3498:39
+    at FlowParserMixin.tryParse (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:6907:20)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3498:18)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10800:39
+    at FlowParserMixin.allowInAnd (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12426:12)
+    at FlowParserMixin.parseMaybeAssignAllowIn (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10800:17)
+    at FlowParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12493:17)
+    at FlowParserMixin.parseParenAndDistinguishExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11675:28)
+    at FlowParserMixin.parseParenAndDistinguishExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3591:18)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11331:23)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4764:20)
+    at FlowParserMixin.parseExprSubscripts (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+    at FlowParserMixin.parseUpdate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+    at FlowParserMixin.parseMaybeUnary (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+    at FlowParserMixin.parseMaybeUnaryOrPrivate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+    at FlowParserMixin.parseExprOps (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+    at FlowParserMixin.parseMaybeConditional (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3549:18)
+    at FlowParserMixin.parseExpressionBase (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10784:23)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10780:39
+    at FlowParserMixin.allowInAnd (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12421:16)
+    at FlowParserMixin.parseExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10780:17)
+    at FlowParserMixin.parseReturnStatement (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13142:28)
+    at FlowParserMixin.parseStatementContent (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12798:21)
+    at FlowParserMixin.parseStatementLike (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+    at FlowParserMixin.parseStatementLike (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:2918:24)
+    at FlowParserMixin.parseStatementListItem (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12747:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13316:61)
+    at FlowParserMixin.parseBlockBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+    at FlowParserMixin.parseBlock (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13297:10)
+    at FlowParserMixin.parseFunctionBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12100:24)
+    at FlowParserMixin.parseFunctionBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:2895:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12086:10)
+
+[1m[31mERROR[39m[22m in [1m[eslint] 
+src\components\WelcomePage.js
+  Line 133:42:  Parsing [1m[31merror[39m[22m[1m: Expected corresponding JSX closing tag for <h2>. (133:42)
+
+[39m[22m
+
+webpack compiled with [1m[31m2 errors[39m[22m
+Compiling...
+Failed to compile.
+
+[eslint] 
+src\components\WelcomePage.js
+Syntax error: Expected corresponding JSX closing tag for <h2>. (133:42) (133:42)
+[1m[31mERROR[39m[22m in [1m./src/components/WelcomePage.js[39m[22m
+Module build failed (from ./node_modules/babel-loader/lib/index.js):
+SyntaxError: C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\src\components\WelcomePage.js: Expected corresponding JSX closing tag for <h2>. (133:42)
+
+[0m [90m 131 |[39m           [33m<[39m[33mdiv[39m className[33m=[39m[32m"hero-copy reveal-up"[39m[33m>[39m
+ [90m 132 |[39m             [33m<[39m[33mspan[39m className[33m=[39m[32m"hero-kicker"[39m[33m>[39m[33mIntelligent[39m queue automation[33m<[39m[33m/[39m[33mspan[39m[33m>[39m
+[31m[1m>[22m[39m[90m 133 |[39m             [33m<[39m[33mh2[39m[33m>[39m[33mAI[39m [33mQueue[39m [33mManagement[39m [33mSystem[39m[33m<[39m[33m/[39m[33mh1[39m[33m>[39m
+ [90m     |[39m                                           [31m[1m^[22m[39m
+ [90m 134 |[39m             [33m<[39m[33mp[39m className[33m=[39m[32m"hero-subtitle"[39m[33m>[39m[33mReduce[39m waiting time[33m,[39m manage tokens[33m,[39m and improve customer flow [36mwith[39m intelligent queue automation[33m.[39m[33m<[39m[33m/[39m[33mp[39m[33m>[39m
+ [90m 135 |[39m             [33m<[39m[33mp[39m className[33m=[39m[32m"hero-description"[39m[33m>[39m
+ [90m 136 |[39m               [33mA[39m modern queue management platform designed [36mfor[39m hospitals[33m,[39m banks[33m,[39m schools[33m,[39m service centers[33m,[39m offices[33m,[39m clinics[33m,[39m salons[33m,[39m and enterprises[33m.[39m[0m
+    at constructor (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+    at FlowParserMixin.raise (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:6599:19)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4727:16)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElement (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4749:17)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4759:19)
+    at FlowParserMixin.parseExprSubscripts (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+    at FlowParserMixin.parseUpdate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+    at FlowParserMixin.parseMaybeUnary (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+    at FlowParserMixin.parseMaybeUnaryOrPrivate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+    at FlowParserMixin.parseExprOps (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+    at FlowParserMixin.parseMaybeConditional (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3498:39
+    at FlowParserMixin.tryParse (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:6907:20)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3498:18)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10800:39
+    at FlowParserMixin.allowInAnd (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12426:12)
+    at FlowParserMixin.parseMaybeAssignAllowIn (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10800:17)
+    at FlowParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12493:17)
+    at FlowParserMixin.parseParenAndDistinguishExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11675:28)
+    at FlowParserMixin.parseParenAndDistinguishExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3591:18)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11331:23)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4764:20)
+    at FlowParserMixin.parseExprSubscripts (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+    at FlowParserMixin.parseUpdate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+    at FlowParserMixin.parseMaybeUnary (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+    at FlowParserMixin.parseMaybeUnaryOrPrivate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+    at FlowParserMixin.parseExprOps (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+    at FlowParserMixin.parseMaybeConditional (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3549:18)
+    at FlowParserMixin.parseExpressionBase (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10784:23)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10780:39
+    at FlowParserMixin.allowInAnd (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12421:16)
+    at FlowParserMixin.parseExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10780:17)
+    at FlowParserMixin.parseReturnStatement (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13142:28)
+    at FlowParserMixin.parseStatementContent (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12798:21)
+    at FlowParserMixin.parseStatementLike (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+    at FlowParserMixin.parseStatementLike (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:2918:24)
+    at FlowParserMixin.parseStatementListItem (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12747:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13316:61)
+    at FlowParserMixin.parseBlockBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+    at FlowParserMixin.parseBlock (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13297:10)
+    at FlowParserMixin.parseFunctionBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12100:24)
+    at FlowParserMixin.parseFunctionBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:2895:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12086:10)
+
+[1m[31mERROR[39m[22m in [1m[eslint] 
+src\components\WelcomePage.js
+  Line 133:42:  Parsing [1m[31merror[39m[22m[1m: Expected corresponding JSX closing tag for <h2>. (133:42)
+
+[39m[22m
+
+webpack compiled with [1m[31m2 errors[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Failed to compile.
+
+[eslint] 
+src\components\WelcomePage.js
+Syntax error: Expected corresponding JSX closing tag for <h>. (133:41) (133:41)
+[1m[31mERROR[39m[22m in [1m./src/components/WelcomePage.js[39m[22m
+Module build failed (from ./node_modules/babel-loader/lib/index.js):
+SyntaxError: C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\src\components\WelcomePage.js: Expected corresponding JSX closing tag for <h>. (133:41)
+
+[0m [90m 131 |[39m           [33m<[39m[33mdiv[39m className[33m=[39m[32m"hero-copy reveal-up"[39m[33m>[39m
+ [90m 132 |[39m             [33m<[39m[33mspan[39m className[33m=[39m[32m"hero-kicker"[39m[33m>[39m[33mIntelligent[39m queue automation[33m<[39m[33m/[39m[33mspan[39m[33m>[39m
+[31m[1m>[22m[39m[90m 133 |[39m             [33m<[39m[33mh[39m[33m>[39m[33mAI[39m [33mQueue[39m [33mManagement[39m [33mSystem[39m[33m<[39m[33m/[39m[33mh1[39m[33m>[39m
+ [90m     |[39m                                          [31m[1m^[22m[39m
+ [90m 134 |[39m             [33m<[39m[33mp[39m className[33m=[39m[32m"hero-subtitle"[39m[33m>[39m[33mReduce[39m waiting time[33m,[39m manage tokens[33m,[39m and improve customer flow [36mwith[39m intelligent queue automation[33m.[39m[33m<[39m[33m/[39m[33mp[39m[33m>[39m
+ [90m 135 |[39m             [33m<[39m[33mp[39m className[33m=[39m[32m"hero-description"[39m[33m>[39m
+ [90m 136 |[39m               [33mA[39m modern queue management platform designed [36mfor[39m hospitals[33m,[39m banks[33m,[39m schools[33m,[39m service centers[33m,[39m offices[33m,[39m clinics[33m,[39m salons[33m,[39m and enterprises[33m.[39m[0m
+    at constructor (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+    at FlowParserMixin.raise (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:6599:19)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4727:16)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElementAt (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4698:32)
+    at FlowParserMixin.jsxParseElement (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4749:17)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4759:19)
+    at FlowParserMixin.parseExprSubscripts (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+    at FlowParserMixin.parseUpdate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+    at FlowParserMixin.parseMaybeUnary (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+    at FlowParserMixin.parseMaybeUnaryOrPrivate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+    at FlowParserMixin.parseExprOps (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+    at FlowParserMixin.parseMaybeConditional (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3498:39
+    at FlowParserMixin.tryParse (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:6907:20)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3498:18)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10800:39
+    at FlowParserMixin.allowInAnd (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12426:12)
+    at FlowParserMixin.parseMaybeAssignAllowIn (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10800:17)
+    at FlowParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12493:17)
+    at FlowParserMixin.parseParenAndDistinguishExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11675:28)
+    at FlowParserMixin.parseParenAndDistinguishExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3591:18)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11331:23)
+    at FlowParserMixin.parseExprAtom (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:4764:20)
+    at FlowParserMixin.parseExprSubscripts (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+    at FlowParserMixin.parseUpdate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+    at FlowParserMixin.parseMaybeUnary (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+    at FlowParserMixin.parseMaybeUnaryOrPrivate (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+    at FlowParserMixin.parseExprOps (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+    at FlowParserMixin.parseMaybeConditional (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+    at FlowParserMixin.parseMaybeAssign (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:3549:18)
+    at FlowParserMixin.parseExpressionBase (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10784:23)
+    at C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10780:39
+    at FlowParserMixin.allowInAnd (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12421:16)
+    at FlowParserMixin.parseExpression (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:10780:17)
+    at FlowParserMixin.parseReturnStatement (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13142:28)
+    at FlowParserMixin.parseStatementContent (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12798:21)
+    at FlowParserMixin.parseStatementLike (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+    at FlowParserMixin.parseStatementLike (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:2918:24)
+    at FlowParserMixin.parseStatementListItem (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12747:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13316:61)
+    at FlowParserMixin.parseBlockBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+    at FlowParserMixin.parseBlock (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:13297:10)
+    at FlowParserMixin.parseFunctionBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12100:24)
+    at FlowParserMixin.parseFunctionBody (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:2895:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (C:\Users\thars\OneDrive\Desktop\AI Queue app\frontend\node_modules\@babel\parser\lib\index.js:12086:10)
+
+[1m[31mERROR[39m[22m in [1m[eslint] 
+src\components\WelcomePage.js
+  Line 133:41:  Parsing [1m[31merror[39m[22m[1m: Expected corresponding JSX closing tag for <h>. (133:41)
+
+[39m[22m
+
+webpack compiled with [1m[31m2 errors[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m
+Compiling...
+Compiled successfully!
+webpack compiled [1m[32msuccessfully[39m[22m

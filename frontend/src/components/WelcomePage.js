@@ -64,6 +64,9 @@ const stats = [
   ['Customer Satisfaction', 96, '%']
 ];
 
+const navLinks = ['Features', 'Pricing', 'Documentation', 'Support', 'Contact'];
+const footerLinks = ['Privacy Policy', 'Terms of Service'];
+
 function useAnimatedCounters(enabled = true) {
   const [values, setValues] = useState(stats.map(() => 0));
 
@@ -89,6 +92,7 @@ function useAnimatedCounters(enabled = true) {
 
 function WelcomePage({ onDone }) {
   const [openFaq, setOpenFaq] = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const counters = useAnimatedCounters(true);
   const logoSrc = `${process.env.PUBLIC_URL || ''}/image/logo.png`;
 
@@ -117,7 +121,24 @@ function WelcomePage({ onDone }) {
             <img src={logoSrc} alt="" />
             <span>AI Queue</span>
           </div>
-          <button type="button" className="landing-nav-action" onClick={onDone}>Get Started</button>
+          <button
+            type="button"
+            className="landing-menu-toggle"
+            onClick={() => setMobileNavOpen((isOpen) => !isOpen)}
+            aria-expanded={mobileNavOpen}
+            aria-controls="landing-mobile-nav"
+            aria-label="Toggle navigation menu"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <div id="landing-mobile-nav" className={`landing-nav-links ${mobileNavOpen ? 'open' : ''}`}>
+            {navLinks.map((item) => (
+              <button type="button" key={item} onClick={() => setMobileNavOpen(false)}>{item}</button>
+            ))}
+          </div>
+          <button type="button" className="landing-nav-action" onClick={onDone}>Sign Up</button>
         </nav>
 
         <div className="hero-grid">
@@ -154,11 +175,14 @@ function WelcomePage({ onDone }) {
                 <span>A104</span>
                 <span>A105</span>
               </div>
-              <div className="animated-queue-line">
-                <i />
-                <i />
-                <i />
-                <i />
+              <div className="animated-queue-line" aria-hidden="true">
+                <span className="queue-counter-point">Desk</span>
+                {['A103', 'A104', 'A105', 'A106'].map((token) => (
+                  <span className="queue-person" key={token}>
+                    <b>{token}</b>
+                    <i />
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -367,14 +391,14 @@ function WelcomePage({ onDone }) {
       </section>
 
       <footer className="landing-footer">
-        {['Features', 'Pricing', 'Documentation', 'Support', 'Contact', 'Privacy Policy', 'Terms of Service'].map((item) => (
+        {footerLinks.map((item) => (
           <button type="button" key={item}>{item}</button>
         ))}
         <span>Produced by Callback</span>
       </footer>
 
       <button type="button" className="landing-top-button" onClick={scrollToTop} aria-label="Move to top">
-        ↑
+        &uarr;
       </button>
     </main>
   );
