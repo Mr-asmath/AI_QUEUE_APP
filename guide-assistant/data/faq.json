@@ -1,0 +1,32 @@
+[
+  {
+    "question": "How do I create a token?",
+    "answer": "Open the Token section, select a service, enter customer information, and click Generate Token.",
+    "intent": "create_token",
+    "aliases": ["generate token", "new customer token", "issue token"]
+  },
+  {
+    "question": "How can I call the next token?",
+    "answer": "Open the Counter dashboard and click Call Next after confirming your counter and service assignment.",
+    "intent": "call_next",
+    "aliases": ["next token", "serve next customer", "call customer"]
+  },
+  {
+    "question": "Why can't I log in?",
+    "answer": "Check your username, password, assigned role, and branch access. Use Forgot Password if credentials are invalid.",
+    "intent": "login_help",
+    "aliases": ["login problem", "forgot password", "cannot access"]
+  },
+  {
+    "question": "How do I set up TV display?",
+    "answer": "Open TV Display settings, choose branch and layout, then open the generated display URL on the TV browser.",
+    "intent": "tv_display",
+    "aliases": ["display screen", "token screen", "public display"]
+  },
+  {
+    "question": "How do I view analytics?",
+    "answer": "Open Analytics, select a date range, and filter by branch, service, or counter to review queue performance.",
+    "intent": "analytics_help",
+    "aliases": ["reports", "queue metrics", "dashboard"]
+  }
+]

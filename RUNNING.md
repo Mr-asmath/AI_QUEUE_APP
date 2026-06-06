@@ -27,7 +27,7 @@
 
 </details>
 
-This project has a Flask backend and a React frontend.
+This project has a Flask backend, a React frontend, and a separate AI Queue Guide Assistant that starts with Docker Compose.
 
 ## Demo Accounts
 
@@ -126,9 +126,11 @@ docker compose up --build
 Services:
 
 ```text
-Frontend: http://localhost:3000
-Backend:  http://localhost:5000
-n8n:      http://localhost:5678
+Frontend:            http://localhost:3000
+Backend:             http://localhost:5000
+n8n:                 http://localhost:5678
+Guide Assistant:     http://localhost:5051
+Guide Assistant API: http://localhost:5050/health
 ```
 
 n8n login:
@@ -155,6 +157,20 @@ View logs:
 docker compose logs -f backend
 docker compose logs -f frontend
 docker compose logs -f n8n
+docker compose logs -f guide-backend
+docker compose logs -f guide-frontend
+```
+
+If Docker shows `request returned 500 Internal Server Error` for `dockerDesktopLinuxEngine`, restart Docker Desktop and run:
+
+```powershell
+wsl --shutdown
+```
+
+Then open Docker Desktop again, wait until it says Docker is running, and retry:
+
+```powershell
+docker compose up --build
 ```
 
 ## Run Backend With Docker Only

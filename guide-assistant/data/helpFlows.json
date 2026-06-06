@@ -1,0 +1,158 @@
+{
+  "create_token": {
+    "title": "Create Token",
+    "summary": "Generate a new customer token from the Token section.",
+    "steps": [
+      "Open the Token section.",
+      "Select the service requested by the customer.",
+      "Enter the customer information.",
+      "Click Generate Token.",
+      "Save or print the generated token."
+    ],
+    "details": "Make sure the selected branch, service, and counter availability match the customer's request before generating the token."
+  },
+  "check_queue": {
+    "title": "Check Queue",
+    "summary": "Review waiting and active tokens from the queue dashboard.",
+    "steps": [
+      "Open the Queue section.",
+      "Choose the branch and service filter.",
+      "Review waiting, serving, skipped, and completed tokens.",
+      "Use search if you need a specific token.",
+      "Refresh the view if live updates are paused."
+    ],
+    "details": "Queue status may differ by branch, service, and counter assignment."
+  },
+  "cancel_token": {
+    "title": "Cancel Token",
+    "summary": "Cancel a token that should no longer be served.",
+    "steps": [
+      "Open the token details from the queue list.",
+      "Confirm the token number and customer information.",
+      "Click Cancel Token.",
+      "Choose a cancellation reason if required.",
+      "Confirm the cancellation."
+    ],
+    "details": "Cancelled tokens should remain visible in history for audit and reporting."
+  },
+  "call_next": {
+    "title": "Call Next Token",
+    "summary": "Call the next waiting token for the assigned counter.",
+    "steps": [
+      "Open the Counter dashboard.",
+      "Confirm your active branch, service, and counter.",
+      "Click Call Next.",
+      "Wait for the token to appear as serving.",
+      "Proceed with service or mark the token as skipped if the customer is absent."
+    ],
+    "details": "Only counters assigned to the selected service should call tokens from that queue."
+  },
+  "transfer_token": {
+    "title": "Transfer Token",
+    "summary": "Move a token to another service or counter.",
+    "steps": [
+      "Open the active token details.",
+      "Click Transfer.",
+      "Select the target service, queue, or counter.",
+      "Add a transfer note if needed.",
+      "Confirm the transfer."
+    ],
+    "details": "Transfers are useful when a customer selected the wrong service or needs specialist handling."
+  },
+  "queue_status": {
+    "title": "Queue Status",
+    "summary": "Understand queue load, waiting count, and service progress.",
+    "steps": [
+      "Open the queue dashboard.",
+      "Select the branch and service.",
+      "Check waiting count and currently serving token.",
+      "Review estimated wait time if enabled.",
+      "Use analytics for historical trends."
+    ],
+    "details": "Live status can later be connected to AI Queue APIs."
+  },
+  "tv_display": {
+    "title": "TV Display Setup",
+    "summary": "Configure public token display screens.",
+    "steps": [
+      "Open TV Display settings.",
+      "Select the branch and display layout.",
+      "Choose the services or counters to show.",
+      "Copy or open the display URL on the TV browser.",
+      "Test token announcements and audio volume."
+    ],
+    "details": "Use a dedicated browser profile or kiosk mode for reliable display playback."
+  },
+  "analytics_help": {
+    "title": "Analytics Help",
+    "summary": "Use analytics to understand service performance.",
+    "steps": [
+      "Open Analytics.",
+      "Select the date range.",
+      "Filter by branch, service, or counter.",
+      "Review wait time, service time, skipped tokens, and throughput.",
+      "Export reports if needed."
+    ],
+    "details": "Analytics can reveal peak hours, staff utilization, and service bottlenecks."
+  },
+  "login_help": {
+    "title": "Login Help",
+    "summary": "Resolve common sign-in and access issues.",
+    "steps": [
+      "Confirm the email or username is correct.",
+      "Check that the user belongs to the correct branch or role.",
+      "Use Forgot Password if credentials are invalid.",
+      "Clear browser cache if the page loops.",
+      "Contact an administrator if the account is disabled."
+    ],
+    "details": "For production, login help should connect to AI Queue authentication and role management rules."
+  },
+  "branch_management": {
+    "title": "Branch Management",
+    "summary": "Create and maintain branch records.",
+    "steps": [
+      "Open Branch Management.",
+      "Click Add Branch or select an existing branch.",
+      "Enter branch name, code, location, and contact details.",
+      "Assign services and operating hours.",
+      "Save and verify the branch appears in filters."
+    ],
+    "details": "Branch configuration affects queue routing, counters, users, and reports."
+  },
+  "counter_management": {
+    "title": "Counter Management",
+    "summary": "Create counters and assign services.",
+    "steps": [
+      "Open Counter Management.",
+      "Choose the branch.",
+      "Click Add Counter or edit an existing counter.",
+      "Assign supported services and counter users.",
+      "Save and test by calling a token."
+    ],
+    "details": "Counters should be named clearly so staff and display screens show consistent information."
+  },
+  "feedback": {
+    "title": "Feedback",
+    "summary": "Collect and review customer feedback.",
+    "steps": [
+      "Open Feedback or Customer Satisfaction.",
+      "Select the branch and date range.",
+      "Review ratings, comments, and complaint categories.",
+      "Follow up on low ratings.",
+      "Use reports to identify recurring issues."
+    ],
+    "details": "Feedback data can later be connected to customer records and service history."
+  },
+  "support": {
+    "title": "Contact Support",
+    "summary": "Escalate an issue to the support team.",
+    "steps": [
+      "Collect the issue description.",
+      "Note the branch, user, token number, and time of issue.",
+      "Capture a screenshot if possible.",
+      "Send the details to AI Queue support.",
+      "Track the support response."
+    ],
+    "details": "For urgent production issues, include logs and exact reproduction steps."
+  }
+}

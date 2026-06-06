@@ -107,6 +107,41 @@ services:
     volumes:
       - n8n-data:/home/node/.n8n
 
+  guide-backend:
+    build:
+      context: ./guide-assistant
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 5050
+      FRONTEND_ORIGIN: http://localhost:5051,http://localhost:3000
+      GUIDE_DATA_DIR: /app/data
+    ports:
+      - "5050:5050"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5050/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  guide-frontend:
+    build:
+      context: ./guide-assistant
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:5050
+    restart: unless-stopped
+    depends_on:
+      guide-backend:
+        condition: service_healthy
+    ports:
+      - "5051:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
 volumes:
   queue-data:
   mongo-data:

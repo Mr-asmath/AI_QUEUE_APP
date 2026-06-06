@@ -27,7 +27,7 @@
 <summary><strong>Feature Highlights</strong></summary>
 
 - Multi-role queue workflow for users, operators, service providers, industry admins, and main admins.
-- Docker stack with backend, frontend, MongoDB, Redis, mongo-express, Prometheus, and n8n.
+- Docker stack with backend, frontend, MongoDB, Redis, mongo-express, Prometheus, n8n, and the AI Queue Guide Assistant.
 - Profile images, app logos, editable terms, theme settings, verification UI, and TV Cast display mode.
 - Public TV display route for HDMI, smart TV browsers, mini PCs, tablets, Raspberry Pi, and custom display hardware.
 
@@ -106,6 +106,8 @@ Open:
 | Mongo Express | http://localhost:8081 |
 | Prometheus | http://localhost:9090 |
 | n8n | http://localhost:5678 |
+| Guide Assistant | http://localhost:5051 |
+| Guide Assistant API | http://localhost:5050/health |
 
 Stop services:
 

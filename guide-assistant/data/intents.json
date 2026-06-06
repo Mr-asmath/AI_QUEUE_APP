@@ -1,0 +1,67 @@
+[
+  {
+    "id": "create_token",
+    "label": "Create Token",
+    "keywords": ["create token", "generate token", "new token", "issue token", "customer token", "token create", "creating token"]
+  },
+  {
+    "id": "check_queue",
+    "label": "Check Queue",
+    "keywords": ["check queue", "view queue", "queue list", "waiting list", "current queue", "see queue"]
+  },
+  {
+    "id": "cancel_token",
+    "label": "Cancel Token",
+    "keywords": ["cancel token", "delete token", "remove token", "void token", "discard token"]
+  },
+  {
+    "id": "call_next",
+    "label": "Call Next Token",
+    "keywords": ["call next", "next token", "serve next", "call customer", "announce token"]
+  },
+  {
+    "id": "transfer_token",
+    "label": "Transfer Token",
+    "keywords": ["transfer token", "move token", "send token", "different counter", "change counter"]
+  },
+  {
+    "id": "queue_status",
+    "label": "Queue Status",
+    "keywords": ["queue status", "status of queue", "queue progress", "waiting time", "how many waiting"]
+  },
+  {
+    "id": "tv_display",
+    "label": "TV Display Setup",
+    "keywords": ["tv display", "display setup", "screen setup", "kiosk display", "public display", "token screen"]
+  },
+  {
+    "id": "analytics_help",
+    "label": "Analytics Help",
+    "keywords": ["analytics", "reports", "dashboard", "metrics", "insights", "statistics"]
+  },
+  {
+    "id": "login_help",
+    "label": "Login Help",
+    "keywords": ["login", "log in", "sign in", "password", "forgot password", "cannot access", "locked out"]
+  },
+  {
+    "id": "branch_management",
+    "label": "Branch Management",
+    "keywords": ["branch", "branches", "branch management", "add branch", "edit branch", "location"]
+  },
+  {
+    "id": "counter_management",
+    "label": "Counter Management",
+    "keywords": ["counter", "counters", "counter management", "add counter", "assign counter", "service counter"]
+  },
+  {
+    "id": "feedback",
+    "label": "Feedback",
+    "keywords": ["feedback", "review", "rating", "complaint", "suggestion", "satisfaction"]
+  },
+  {
+    "id": "support",
+    "label": "Contact Support",
+    "keywords": ["support", "contact", "help desk", "agent", "human", "technical help", "customer care"]
+  }
+]

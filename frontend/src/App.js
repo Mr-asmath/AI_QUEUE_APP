@@ -11,6 +11,7 @@ import ProfilePage from './components/ProfilePage';
 import QueueLoader from './components/QueueLoader';
 import WelcomePage from './components/WelcomePage';
 import TVDisplayPage from './components/TVDisplayPage';
+import GuideChatbot from './components/GuideChatbot';
 import { apiPath } from './config';
 
 function App() {
@@ -203,6 +204,8 @@ function App() {
       {networkIssue && (
         <QueueLoader message="Queue loading" overlay />
       )}
+
+      <GuideChatbot user={user} currentView={currentView} />
     </div>
   );
 }
