@@ -230,7 +230,7 @@ function GuideChatbot({ user, currentView }) {
       )}
 
       <button type="button" className="guide-chatbot-toggle" onClick={toggleOpen} aria-label="Open AI Queue guide assistant">
-        <span>AI</span>
+        <span className="material-icons" aria-hidden="true">chat_bubble</span>
       </button>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
 import { ExportMenu } from '../exportUtils';
 import { roleLabelsFor } from '../roleLabels';
+import AlertMessage from './AlertMessage';
 import BottomNavigation from './BottomNavigation';
 
 function UserDashboard({ user, onLogout }) {
@@ -210,17 +211,17 @@ function UserDashboard({ user, onLogout }) {
         </div>
       </div>
 
-      {message && <div className="success-message">{message}</div>}
+      <AlertMessage type="success">{message}</AlertMessage>
       {queueStatus?.queue_paused && (
-        <div className="warning-message">
+        <AlertMessage type="warning">
           Queue paused: {queueStatus.queue_pause_reason || 'Paused by staff'}. Your order stays the same and will continue after resume.
-        </div>
+        </AlertMessage>
       )}
       {sessionExpired && (
-        <div className="error-message">
+        <AlertMessage type="error">
           Session expired or backend is not connected. Please sign in again.
           <button className="link-button" onClick={onLogout}>Back to login</button>
-        </div>
+        </AlertMessage>
       )}
 
       <BottomNavigation items={userTabs} activeId={activeTab} onSelect={setActiveTab} />
@@ -239,7 +240,7 @@ function UserDashboard({ user, onLogout }) {
               </select>
             </div>
             {selectedBranch && !selectedBranchEmergencyEnabled && (
-              <div className="info-message">Emergency requests are off for this branch.</div>
+              <AlertMessage type="info">Emergency requests are off for this branch.</AlertMessage>
             )}
             {selectedBranch && selectedBranch.user_schema.map(renderField)}
             <button type="submit" disabled={!branchId}>Generate Queue Token</button>

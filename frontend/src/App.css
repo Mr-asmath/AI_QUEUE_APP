@@ -2968,6 +2968,8 @@ button:disabled {
 }
 
 .auth-card {
+  position: relative;
+  overflow: visible;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
   padding: 32px;
@@ -2981,6 +2983,16 @@ button:disabled {
 
 .wide-card {
   max-width: 760px;
+}
+
+.dashboard,
+.control-panel,
+.data-container,
+.profile-shell,
+.profile-main,
+.verification-panel {
+  position: relative;
+  overflow: visible;
 }
 
 .auth-subtitle {
@@ -3038,22 +3050,242 @@ textarea,
   font-size: 0.95rem;
 }
 
+.success-message,
+.error-message,
+.warning-message,
+.info-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  z-index: 99999;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: min(520px, calc(100vw - 30px));
+  max-width: 520px;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-bottom: 0;
+  padding: 13px 16px 13px 18px;
+  overflow: hidden;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  border-left-width: 4px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  transform: translateX(-50%);
+  animation: alertFadeSlideIn 420ms ease-out both, alertAutoHide 5s ease forwards;
+}
+
+.success-message::before,
+.error-message::before,
+.warning-message::before,
+.info-message::before {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.success-message::after,
+.error-message::after,
+.warning-message::after,
+.info-message::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  transform-origin: left center;
+  animation: alertTimeline 5s linear forwards;
+}
+
 .success-message {
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid #9ad4c4;
-  color: #0f513f;
-  background: #e7f6f1;
+  color: #14532d;
+  border-color: #a7f3d0;
+  border-left-color: #16a34a;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  animation-name: alertBounceIn, alertAutoHide;
+}
+
+.success-message::before {
+  content: "✓";
+  background: #16a34a;
+}
+
+.success-message::after {
+  background: #16a34a;
 }
 
 .error-message {
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid #fecaca;
   color: #991b1b;
-  background: #fef2f2;
+  border-color: #fecaca;
+  border-left-color: #dc2626;
+  background: linear-gradient(135deg, #fff1f2, #fee2e2);
+  animation-name: alertShakeIn, alertAutoHide;
+}
+
+.error-message::before {
+  content: "!";
+  background: #dc2626;
+}
+
+.error-message::after {
+  background: #dc2626;
+}
+
+.warning-message {
+  color: #78350f;
+  border-color: #fde68a;
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  animation-name: alertPulseGlow, alertAutoHide;
+}
+
+.warning-message::before {
+  content: "!";
+  background: #d97706;
+}
+
+.warning-message::after {
+  background: #f59e0b;
+}
+
+.info-message {
+  color: #0f4c5c;
+  border-color: #a5f3fc;
+  border-left-color: #06b6d4;
+  background: linear-gradient(135deg, #ecfeff, #cffafe);
+  animation-name: alertSlideLeftIn, alertAutoHide;
+}
+
+.info-message::before {
+  content: "i";
+  background: #0891b2;
+  font-family: Georgia, serif;
+}
+
+.info-message::after {
+  background: #06b6d4;
+}
+
+@keyframes alertFadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes alertBounceIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.94) translateY(-12px);
+  }
+  58% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.015) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes alertShakeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(calc(-50% - 18px));
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(calc(-50% + 7px));
+  }
+  40% {
+    transform: translateX(calc(-50% - 6px));
+  }
+  60% {
+    transform: translateX(calc(-50% + 4px));
+  }
+  80% {
+    transform: translateX(calc(-50% - 2px));
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes alertPulseGlow {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+  }
+  55% {
+    opacity: 1;
+    box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  }
+}
+
+@keyframes alertSlideLeftIn {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-50% - 36px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes alertTimeline {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes alertAutoHide {
+  0%,
+  82% {
+    opacity: 1;
+    max-height: 220px;
+    margin-bottom: 18px;
+    padding-top: 13px;
+    padding-bottom: 13px;
+  }
+  100% {
+    opacity: 0;
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    transform: translateX(-50%) translateY(12px);
+    visibility: hidden;
+  }
 }
 
 button {
@@ -3169,9 +3401,10 @@ textarea:focus {
 }
 
 .success-message {
-  border-color: color-mix(in srgb, var(--theme-1) 34%, #9ad4c4);
-  background: color-mix(in srgb, var(--theme-1) 9%, #ffffff);
-  color: color-mix(in srgb, var(--theme-1) 70%, #0f513f);
+  border-color: color-mix(in srgb, var(--theme-1) 28%, #a7f3d0);
+  border-left-color: #16a34a;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--theme-1) 8%, #ffffff), #ecfdf5);
+  color: color-mix(in srgb, var(--theme-1) 68%, #14532d);
 }
 
 .app-bottom-nav {
@@ -3297,20 +3530,11 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.warning-message,
 .info-message {
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid #fcd34d;
-  color: #92400e;
-  background: #fffbeb;
-}
-
-.info-message {
-  border-color: #7dd3fc;
-  color: #075985;
-  background: #f0f9ff;
+  border-color: color-mix(in srgb, var(--theme-2) 22%, #a5f3fc);
+  border-left-color: #06b6d4;
+  color: color-mix(in srgb, var(--theme-2) 58%, #0f4c5c);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--theme-2) 7%, #ffffff), #ecfeff);
 }
 
 .split-layout {
@@ -3918,23 +4142,36 @@ textarea:focus {
 }
 
 .notification-card {
-  background: white;
-  padding: 16px 20px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  padding: 16px 20px 16px 22px;
   border-radius: 10px;
-  border: 1px solid #e9ecef;
+  border: 1px solid color-mix(in srgb, var(--theme-1) 16%, #e9ecef);
   cursor: pointer;
   position: relative;
-  transition: all 0.2s;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  animation: alertFadeSlideIn 420ms ease-out both;
+}
+
+.notification-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: color-mix(in srgb, var(--theme-1) 55%, var(--theme-2));
 }
 
 .notification-card:hover {
-  border-color: #2563eb;
-  background: #f8fafc;
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--theme-2) 38%, var(--theme-1));
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
 }
 
 .notification-card.unread {
-  background: #eff6ff;
-  border-left: 4px solid #2563eb;
+  background: linear-gradient(135deg, #eff6ff, #ecfeff);
+  border-color: color-mix(in srgb, var(--theme-2) 32%, #bfdbfe);
+  animation-name: alertSlideLeftIn;
 }
 
 .notification-message {
@@ -3961,17 +4198,35 @@ textarea:focus {
   position: fixed;
   top: 24px;
   right: 24px;
-  background: white;
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 20px 40px -12px rgba(0,0,0,0.3);
+  width: min(340px, calc(100vw - 32px));
+  box-sizing: border-box;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
+  backdrop-filter: blur(14px);
+  border-radius: 12px;
+  padding: 18px 20px 18px 22px;
+  box-shadow: 0 20px 42px -14px rgba(15, 23, 42, 0.28);
   max-width: 340px;
   z-index: 100;
-  border: 1px solid #e9ecef;
-  animation: slideInRight 0.3s ease-out;
+  border: 1px solid color-mix(in srgb, var(--theme-1) 20%, #e9ecef);
+  border-left: 4px solid color-mix(in srgb, var(--theme-2) 68%, var(--theme-1));
+  overflow-wrap: anywhere;
+  animation: alertSlideRightIn 360ms ease-out both, alertAutoHide 5s ease forwards;
 }
 
-@keyframes slideInRight {
+.notification-popup::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: color-mix(in srgb, var(--theme-2) 68%, var(--theme-1));
+  transform-origin: left center;
+  animation: alertTimeline 5s linear forwards;
+}
+
+@keyframes alertSlideRightIn {
   from {
     transform: translateX(100%);
     opacity: 0;
@@ -5914,7 +6169,7 @@ textarea:focus {
 .guide-chatbot {
   position: fixed;
   right: 22px;
-  bottom: 92px;
+  bottom: 18px;
   z-index: 1300;
   font-family: var(--app-font-family, Inter, Arial, sans-serif);
 }
@@ -5939,20 +6194,22 @@ textarea:focus {
 }
 
 .guide-chatbot-toggle span {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: auto;
+  height: auto;
+  border-radius: 0;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  font-weight: 900;
+  border: 0;
+  font-size: 23px;
+  font-weight: 400;
   letter-spacing: 0;
+  color: #ffffff;
 }
 
 .guide-chatbot-panel {
   position: absolute;
   right: 0;
-  bottom: 72px;
+  bottom: 76px;
   width: min(380px, calc(100vw - 28px));
   max-height: min(680px, calc(100vh - 130px));
   display: grid;
@@ -6134,7 +6391,7 @@ textarea:focus {
 @media (max-width: 640px) {
   .guide-chatbot {
     right: 14px;
-    bottom: 86px;
+    bottom: 14px;
   }
 
   .guide-chatbot-toggle {
@@ -6144,7 +6401,7 @@ textarea:focus {
 
   .guide-chatbot-panel {
     right: -6px;
-    bottom: 66px;
+    bottom: 70px;
     max-height: calc(100vh - 116px);
   }
 }

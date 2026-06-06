@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiPath } from '../config';
+import AlertMessage from './AlertMessage';
 
 function Register({ onRegister, onSwitchToLogin }) {
   const [mode, setMode] = useState('user');
@@ -181,8 +182,8 @@ function Register({ onRegister, onSwitchToLogin }) {
           <button className={mode === 'industry' ? 'active' : ''} onClick={() => setMode('industry')}>Industry admin request</button>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
-        {message && <div className="success-message">{message}</div>}
+        <AlertMessage type="error">{error}</AlertMessage>
+        <AlertMessage type="success">{message}</AlertMessage>
 
         {mode === 'user' && registrationStep === 'form' ? (
           <form onSubmit={registerUser}>
@@ -235,7 +236,7 @@ function Register({ onRegister, onSwitchToLogin }) {
           <section className="verification-panel">
             <h3>Phone verification</h3>
             <p className="muted-text">Enter the 4-digit code sent to {phoneDraft}.</p>
-            {devPhoneCode && <div className="info-message">Development code: {devPhoneCode}</div>}
+            <AlertMessage type="info">{devPhoneCode ? `Development code: ${devPhoneCode}` : ''}</AlertMessage>
             <div className="otp-box-row">
               {phoneOtp.map((digit, index) => (
                 <input

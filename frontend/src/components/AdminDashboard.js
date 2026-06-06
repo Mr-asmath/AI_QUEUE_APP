@@ -3,6 +3,7 @@ import { getLogoPreset, presetStyle } from '../visualPresets';
 import { apiPath } from '../config';
 import { ExportMenu } from '../exportUtils';
 import { roleLabelsFor } from '../roleLabels';
+import AlertMessage from './AlertMessage';
 import BottomNavigation from './BottomNavigation';
 
 const branchTypes = [
@@ -716,7 +717,7 @@ function AdminDashboard({ user, onHome }) {
         </div>
       </div>
 
-      {message && <div className="success-message">{message}</div>}
+      <AlertMessage type="success">{message}</AlertMessage>
 
       {showSecretLock && (
         <div className="consent-overlay">

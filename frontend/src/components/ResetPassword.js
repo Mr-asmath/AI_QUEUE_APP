@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiPath } from '../config';
+import AlertMessage from './AlertMessage';
 
 function ResetPassword({ token, onBackToLogin }) {
   const [formData, setFormData] = useState({ new_password: '', confirm_password: '' });
@@ -40,8 +41,8 @@ function ResetPassword({ token, onBackToLogin }) {
         <h2>Set New Password</h2>
         <p className="auth-subtitle">Enter and confirm your new password.</p>
 
-        {error && <div className="error-message">{error}</div>}
-        {message && <div className="success-message">{message}</div>}
+        <AlertMessage type="error">{error}</AlertMessage>
+        <AlertMessage type="success">{message}</AlertMessage>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

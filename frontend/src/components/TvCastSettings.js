@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { buildTvDisplayUrl, createTvPayload, fetchTvDisplayData, sendWifiQueuePayload } from '../services/tvCast.service';
+import AlertMessage from './AlertMessage';
 
 const cards = [
   { id: 'hdmi', title: 'HDMI Display', icon: 'desktop_windows' },
@@ -123,7 +124,7 @@ function TvCastSettings({ user }) {
             <button type="button" className="terms-modal-close" aria-label="Close" onClick={() => setModalOpen(false)}>x</button>
             <h3>Bluetooth / WiFi Display</h3>
             {!navigator.bluetooth && (
-              <div className="warning-message">Bluetooth display connection is not supported on this device. Please use HDMI Display Mode or Website URL Display.</div>
+              <AlertMessage type="warning">Bluetooth display connection is not supported on this device. Please use HDMI Display Mode or Website URL Display.</AlertMessage>
             )}
             <div className="form-group">
               <label>WiFi / local receiver endpoint</label>

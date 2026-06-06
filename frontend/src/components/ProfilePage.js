@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiPath } from '../config';
 import { roleLabelOptions, roleLabelsFor } from '../roleLabels';
+import AlertMessage from './AlertMessage';
 import BottomNavigation from './BottomNavigation';
 import TvCastSettings from './TvCastSettings';
 
@@ -577,8 +578,8 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
         </div>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
-      {message && <div className="success-message">{message}</div>}
+      <AlertMessage type="error">{error}</AlertMessage>
+      <AlertMessage type="success">{message}</AlertMessage>
 
       <BottomNavigation
         items={profileSections}
@@ -645,7 +646,7 @@ function ProfilePage({ user, onUserUpdate, onLogout, onHome }) {
           {verification.channel && (
             <div className="verification-panel compact-verification">
               <h4>{verification.channel === 'phone' ? 'Phone' : 'Email'} verification</h4>
-              {verification.devCode && <div className="info-message">Development code: {verification.devCode}</div>}
+              <AlertMessage type="info">{verification.devCode ? `Development code: ${verification.devCode}` : ''}</AlertMessage>
               <div className="otp-box-row">
                 {verification.code.map((digit, index) => (
                   <input

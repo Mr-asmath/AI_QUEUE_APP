@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiPath } from '../config';
+import AlertMessage from './AlertMessage';
 
 function Login({ onLogin, onSwitchToRegister }) {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -65,8 +66,8 @@ function Login({ onLogin, onSwitchToRegister }) {
         <h2>AI Queue Automation</h2>
         <p className="auth-subtitle">Sign in to manage industries, branches, queues, or service work.</p>
 
-        {error && <div className="error-message">{error}</div>}
-        {message && <div className="success-message">{message}</div>}
+        <AlertMessage type="error">{error}</AlertMessage>
+        <AlertMessage type="success">{message}</AlertMessage>
 
         {!showForgot ? (
         <form onSubmit={handleSubmit}>

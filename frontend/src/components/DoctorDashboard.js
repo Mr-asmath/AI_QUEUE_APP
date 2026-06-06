@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiPath } from '../config';
 import { roleLabelsFor } from '../roleLabels';
+import AlertMessage from './AlertMessage';
 
 function DoctorDashboard({ user }) {
   const [tokens, setTokens] = useState([]);
@@ -107,7 +108,7 @@ function DoctorDashboard({ user }) {
         </div>
       </div>
 
-      {message && <div className="success-message">{message}</div>}
+      <AlertMessage type="success">{message}</AlertMessage>
 
       <div className="patient-grid">
         {tokens.map((token) => {
