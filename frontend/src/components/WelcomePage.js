@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const features = [
   ['ST', 'Smart Token Generation', 'Create structured tokens instantly for every service desk and branch.'],
@@ -23,16 +23,16 @@ const features = [
 ];
 
 const industries = [
-  ['H+', 'Hospitals'],
-  ['CL', 'Clinics'],
-  ['BK', 'Banks'],
-  ['SC', 'Schools'],
-  ['UN', 'Universities'],
-  ['GO', 'Government Offices'],
-  ['SV', 'Service Centers'],
-  ['SL', 'Salons'],
-  ['RT', 'Retail Stores'],
-  ['CO', 'Corporate Offices']
+  ['H+', 'Hospitals', 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&w=640&q=80'],
+  ['CL', 'Clinics', 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=640&q=80'],
+  ['BK', 'Banks', 'https://images.unsplash.com/photo-1601597111158-2fceff292cdc?auto=format&fit=crop&w=640&q=80'],
+  ['SC', 'Schools', 'https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=640&q=80'],
+  ['UN', 'Universities', 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=640&q=80'],
+  ['GO', 'Government Offices', 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=640&q=80'],
+  ['SV', 'Service Centers', 'https://images.unsplash.com/photo-1581091215367-59ab6b84bd4a?auto=format&fit=crop&w=640&q=80'],
+  ['SL', 'Salons', 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=640&q=80'],
+  ['RT', 'Retail Stores', 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=640&q=80'],
+  ['CO', 'Corporate Offices', 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=640&q=80']
 ];
 
 const securityBadges = [
@@ -64,8 +64,75 @@ const stats = [
   ['Customer Satisfaction', 96, '%']
 ];
 
+const benefits = [
+  'Faster Customer Service',
+  'Reduced Waiting Time',
+  'Improved Staff Productivity',
+  'Better Customer Experience',
+  'Real-Time Monitoring',
+  'Scalable Multi-Branch Support',
+  'Secure and Reliable'
+];
+
 const navLinks = ['Features', 'Pricing', 'Documentation', 'Support', 'Contact'];
 const footerLinks = ['Privacy Policy', 'Terms of Service'];
+
+const tvDisplayFeatures = [
+  ['monitor', 'HDMI Display Support', 'Connect queue boards to lobby displays, kiosks, and counter screens.'],
+  ['link', 'Website URL Display', 'Share a secure browser URL for any public display or branch monitor.'],
+  ['wifi', 'Bluetooth/WiFi Display', 'Keep nearby devices synchronized with low-friction display workflows.'],
+  ['tv', 'Smart TV Integration', 'Run polished queue screens directly on modern smart TV browsers.']
+];
+
+function DashboardIcon({ name }) {
+  const paths = {
+    monitor: (
+      <>
+        <rect x="3" y="4" width="18" height="12" rx="2" />
+        <path d="M8 20h8" />
+        <path d="M12 16v4" />
+      </>
+    ),
+    link: (
+      <>
+        <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+        <path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1" />
+      </>
+    ),
+    wifi: (
+      <>
+        <path d="M5 13a10 10 0 0 1 14 0" />
+        <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+        <path d="M12 20h.01" />
+      </>
+    ),
+    tv: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M8 3l4 4 4-4" />
+      </>
+    )
+  };
+
+  return (
+    <svg className="tv-feature-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        {paths[name]}
+      </g>
+    </svg>
+  );
+}
+
+function useCurrentTime() {
+  const [time, setTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 function useAnimatedCounters(enabled = true) {
   const [values, setValues] = useState(stats.map(() => 0));
@@ -93,7 +160,9 @@ function useAnimatedCounters(enabled = true) {
 function WelcomePage({ onDone }) {
   const [openFaq, setOpenFaq] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const featureSliderRef = useRef(null);
   const counters = useAnimatedCounters(true);
+  const currentTime = useCurrentTime();
   const logoSrc = `${process.env.PUBLIC_URL || ''}/image/logo.png`;
 
   useEffect(() => {
@@ -102,6 +171,41 @@ function WelcomePage({ onDone }) {
   }, [onDone]);
 
   const featureRows = useMemo(() => features, []);
+
+  useEffect(() => {
+    const track = featureSliderRef.current;
+    if (!track) return undefined;
+
+    const scrollNext = () => {
+      const firstCard = track.querySelector('.feature-card');
+      const gap = Number.parseFloat(window.getComputedStyle(track).columnGap || '0');
+      const distance = (firstCard?.getBoundingClientRect().width || 280) + gap;
+      const nearEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - distance;
+
+      if (nearEnd) {
+        track.scrollTo({ left: 0, behavior: 'smooth' });
+        return;
+      }
+
+      track.scrollBy({ left: distance, behavior: 'smooth' });
+    };
+
+    const timer = setInterval(() => {
+      scrollNext();
+    }, 2300);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const moveFeatureSlide = (direction) => {
+    const track = featureSliderRef.current;
+    if (!track) return;
+
+    const firstCard = track.querySelector('.feature-card');
+    const gap = Number.parseFloat(window.getComputedStyle(track).columnGap || '0');
+    const distance = (firstCard?.getBoundingClientRect().width || 280) + gap;
+    track.scrollBy({ left: distance * direction, behavior: 'smooth' });
+  };
 
   const scrollToDemo = () => {
     document.getElementById('tv-cast-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -214,14 +318,22 @@ function WelcomePage({ onDone }) {
           <span>Platform Features</span>
           <h2>Everything needed for modern queue operations</h2>
         </div>
-        <div className="feature-grid">
-          {featureRows.map(([icon, title, description], index) => (
-            <article className="glass-card feature-card" key={title} style={{ '--delay': `${index * 28}ms` }}>
-              <span className="card-icon">{icon}</span>
-              <h3>{title}</h3>
-              <p>{description}</p>
-            </article>
-          ))}
+        <div className="feature-slider" aria-label="Platform features carousel">
+          <button type="button" className="feature-slider-button" onClick={() => moveFeatureSlide(-1)} aria-label="Previous feature">
+            &lsaquo;
+          </button>
+          <div className="feature-slider-track" ref={featureSliderRef}>
+            {featureRows.map(([icon, title, description], index) => (
+              <article className="glass-card feature-card" key={title} style={{ '--delay': `${index * 36}ms` }}>
+                <span className="card-icon">{icon}</span>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </article>
+            ))}
+          </div>
+          <button type="button" className="feature-slider-button" onClick={() => moveFeatureSlide(1)} aria-label="Next feature">
+            &rsaquo;
+          </button>
         </div>
       </section>
 
@@ -231,8 +343,8 @@ function WelcomePage({ onDone }) {
           <h2>Built for faster service and calmer waiting rooms</h2>
         </div>
         <div className="benefit-grid">
-          {['Faster Customer Service', 'Reduced Waiting Time', 'Improved Staff Productivity', 'Better Customer Experience', 'Real-Time Monitoring', 'Scalable Multi-Branch Support', 'Secure and Reliable'].map((benefit) => (
-            <div className="benefit-pill" key={benefit}>{benefit}</div>
+          {benefits.map((benefit, index) => (
+            <div className="benefit-pill" key={benefit} style={{ '--delay': `${index * 180}ms` }}>{benefit}</div>
           ))}
         </div>
         <div className="stats-grid">
@@ -251,10 +363,13 @@ function WelcomePage({ onDone }) {
           <h2>Flexible for public service, healthcare, retail, and enterprise teams</h2>
         </div>
         <div className="industry-grid">
-          {industries.map(([icon, label]) => (
-            <article className="glass-card industry-card" key={label}>
-              <span>{icon}</span>
-              <strong>{label}</strong>
+          {industries.map(([icon, label, image], index) => (
+            <article className="glass-card industry-card" key={label} style={{ '--delay': `${index * 140}ms` }}>
+              <img src={image} alt="" loading="lazy" />
+              <div>
+                <span>{icon}</span>
+                <strong>{label}</strong>
+              </div>
             </article>
           ))}
         </div>
@@ -270,34 +385,42 @@ function WelcomePage({ onDone }) {
           <div className="tv-preview">
             <div className="tv-screen">
               <div className="tv-topbar">
-                <span>AI Queue Display</span>
-                <time>10:42 AM</time>
+                <span className="tv-live-badge"><i /> Live Queue</span>
+                <time>{currentTime}</time>
               </div>
               <div className="tv-token-row">
-                <div>
+                <div className="tv-mini-token current">
                   <small>Current Token</small>
                   <strong>A102</strong>
                 </div>
-                <div>
+                <div className="tv-mini-token next">
                   <small>Next Token</small>
                   <strong>A103</strong>
                 </div>
               </div>
-              <div className="tv-person">
-                <span className="person-head">A102</span>
-                <span className="person-body" />
+              <div className="tv-active-token">
+                <small>Now Serving</small>
+                <strong>A102</strong>
+                <span>Priority desk queue</span>
               </div>
               <div className="tv-counter-card">
-                <span>Serving By: Dr. Kumar</span>
-                <strong>Counter 03</strong>
+                <div>
+                  <small>Serving Staff</small>
+                  <span>Dr. Kumar</span>
+                </div>
+                <div>
+                  <small>Counter</small>
+                  <strong>03</strong>
+                </div>
               </div>
             </div>
           </div>
           <div className="tv-methods">
-            {['HDMI Display Support', 'Website URL Display', 'Bluetooth / WiFi Display Support', 'Smart TV Integration'].map((method) => (
-              <article className="glass-card method-card" key={method}>
-                <h3>{method}</h3>
-                <p>Live queue data stays synchronized with token movement and counter changes.</p>
+            {tvDisplayFeatures.map(([icon, title, description]) => (
+              <article className="glass-card method-card" key={title}>
+                <span className="tv-feature-icon"><DashboardIcon name={icon} /></span>
+                <h3>{title}</h3>
+                <p>{description}</p>
               </article>
             ))}
           </div>
