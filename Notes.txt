@@ -1,0 +1,408 @@
+modify the project in make an ai agent automation like use n8n or any free agent now. the token can generate the users avoid the duplications. modify the application is used for multiple place like hospital, schools, banks, hotals and more. so there have main admin that mean i, manage and control all on application. then the users or industry admin can install or open the application to send the request to access the application and fill the details of admin, industry and more for get the access from main admin. the main admin can reject to send the message or email this is reject. or the main admin is accept to send the admin username and default generate password to industry admin. and send the term and condition of all the details can view and manage from main admin(application admin). the industry admin can login or reset the password. then the industry admin can create a branches and allocate the queue managers for each branches. to create a branch ask a branch name, details, what type of branch like (hospital, school, hotal, bank and more and add the lst of other(requied the type name)) on first site, then second site to ask the what are include in queue dashboard the users site, queue operator and service provider. the users can generate the token anywhere, to give the details, to see the previews suggestion details, current queue count. the queue operator can see the current queue count, see the suggestion and details on user or previews users. the service provider can role like( doctor on hospital, teacher or admin on school, manager on hostal, manager on bank) like it. the industry admin can first fill the service provider site dashboard to display the more fields in checkbox type like (display user details, display perviews users details, display next details, display current user details, display suggestion text box (to ask the number of suggestion text box and ask title for each suggestion box), display search checkbox (to allow to add the items for display on checkbox the service provider can select multiple item, then ask checkbox value like price, name, or any value for checkbox which is only needed to users), display the cash prize(to diplay the checkbox items with prize to select the items on checkbox lastly display the total, average, count and give more aggerations, the aggearation also selected from creator), display the transations(send, recevied, pending, failure like display for users this is used for online or offline transation on industry entris),to display the ai suggestion textbox( it is generate the suggestions based on user queue current details and generate the suggestion to display on suggestion textbox, this is work after the service provider click ask suggestion button) and add like this more based on multiple industries. second to allowd to create the queue operator site, in the side to add to display above items and ask each on two options edit and read( allow edit to able to edit the details, read mean only read the details), to allow the queue operator for allocate the service provider to user based on users need and service provider role, thrid allow to create an user site to create a key and values( key means names of attributes, value means value of key there is select the type like int, text, float, image, or more types, then add the checkbox for display the items like ( diplay previews suggestions, display current suggestions, display current queue count, display to allow generate the queue token, display to allow the reject queue token, display cash prize, display transations, display queue operator name and contact, display service provider name and contacts, display total number of queue count and like more. the industry admin can allow to create a multiplt queue operator and service provider. the user can download or display on website to allow on register and login, the users can select the place, select the industry, fill the requird details, then click submit, then queue operator can verified the details and generate the token to send the message on user to see on application. to avoid the duplicate users. each token can valide only 30 to 60 min only within time the users can entry on industry and view the queue operator, the queue operator can verified the click customer in,the token can valid, otherwise user not entry before 60 min the token is automatically reject and send the notification to user eacn 10 min before verifications. the users can queue order if any users not on industry to displaying pending to reorder the pending user in after next custom in automatically. the industry admin can create a branches to display select the allow option in two options like to ask allow all branch, allow to selected branch only for share the details of users and all for user can use same industry in multiple places with display the same details and suggestions for all dashboard sites. to add the ai agent for control the all automation works, and automatically detect the duplicate tokens, to generate the ai sugestions based on user inputs on current token. and create with more classical style like real time application to use normal database to allow for access the cloud db in future options, to add the docker for manage the software and add the kubernets with 2 replicasets. and add more devops tools to manage this project. to modify the project for the main admin can create and add the industry admin not allow to login , the indusrty admin can register the page the admin can allow only create a account otherwise see waiting, or admin can reject to cancel the registation. the operates and provider so register in separate register with role type this is allow to create an account from that currect industry admin. there is display the unique number can each industry generate by industry admin to create a branch , the operator or provider is select that unique code to send the request to that current industry admin this is all work on industry admin. and don't display the admin login email adn password on login page and add the register page for other 3 actor
+
+
+==========
+
+to modify the project for industry admin dashboard site to allow to change the password, to add the forgot password option to click forgot password to send on admin the admin can click accept to send the default password to industry admin adn same to 3 roles. and operator and servicer is create there are is not generate to default password. the branch is create option display this Create Branch
+Branch name
+Details
+
+Hospital
+Suggestion
+Consultation:300, Service Charge:100
+name:text, phone:text, need:text  i need to create like follow this to create a branch ask a branch name, details, what type of branch like (hospital, school, hotal, bank and more and add the lst of other(requied the type name)) on first site, then second site to ask the what are include in queue dashboard the users site, queue operator and service provider. the users can generate the token anywhere, to give the details, to see the previews suggestion details, current queue count. the queue operator can see the current queue count, see the suggestion and details on user or previews users. the service provider can role like( doctor on hospital, teacher or admin on school, manager on hostal, manager on bank) like it. the industry admin can first fill the service provider site dashboard to display the more fields in checkbox type like (display user details, display perviews users details, display next details, display current user details, display suggestion text box (to ask the number of suggestion text box and ask title for each suggestion box), display search checkbox (to allow to add the items for display on checkbox the service provider can select multiple item, then ask checkbox value like price, name, or any value for checkbox which is only needed to users), display the cash prize(to diplay the checkbox items with prize to select the items on checkbox lastly display the total, average, count and give more aggerations, the aggearation also selected from creator), display the transations(send, recevied, pending, failure like display for users this is used for online or offline transation on industry entris),to display the ai suggestion textbox( it is generate the suggestions based on user queue current details and generate the suggestion to display on suggestion textbox, this is work after the service provider click ask suggestion button) and add like this more based on multiple industries. second to allowd to create the queue operator site, in the side to add to display above items and ask each on two options edit and read( allow edit to able to edit the details, read mean only read the details), to allow the queue operator for allocate the service provider to user based on users need and service provider role, thrid allow to create an user site to create a key and values( key means names of attributes, value means value of key there is select the type like int, text, float, image, or more types, then add the checkbox for display the items like ( diplay previews suggestions, display current suggestions, display current queue count, display to allow generate the queue token, display to allow the reject queue token, display cash prize, display transations, display queue operator name and contact, display service provider name and contacts, display total number of queue count and like more. the industry admin can allow to create a multiplt queue operator and service provider. the user can download or display on website to allow on register and login, the users can select the place, select the industry, fill the requird details, then click submit, then queue operator can verified the details and generate the token to send the message on user to see on application. to avoid the duplicate users. each token can valide only 30 to 60 min only within time the users can entry on industry and view the queue operator, the queue operator can verified the click customer in,the token can valid, otherwise user not entry before 60 min the token is automatically reject and send the notification to user eacn 10 min before verifications. the users can queue order if any users not on industry to displaying pending to reorder the pending user in after next custom in automatically. the industry admin can create a branches to display select the allow option in two options like to ask allow all branch, allow to selected branch only for share the details of users and all for user can use same industry in multiple places with display the same details and suggestions for all dashboard sites. you can follow this all. the create branch and all side you add the checkbox method not typing method
+
+
+
+
+can you see the whole project for any modifications, add styles, animations, images. to make a real app. with access on any devices, the header side displaying like box in profile and access to change like top header bar side profile is display like circle default face to add the user and other for change the more default logos, face or own images.
+
+
+
+in industryadmin page, to modify the top side apps and your profile remove and app is convert to home logo on leftside and your profile change to click on project logo or image, remove the logout button on dashboard add on inside of project page in separate the sections. in dashboard not display the create branch section to change on plus logo in right botton to click to move to create branch page to create. in branch section ony display the created branchs same for staff and queue control. and correct the algin and change checkbox to display like listbox to click one or more to add on below box for only checkbosx inputs. to modify and add the address  and more personal details for create the queue manager and queue controller. in Your profile page i ask project avater logo not like letters, the images get like input type image not like url image. like upload image for all profiles
+
+in industry admin page the home button is change to home logo and move to right side of title lable side, the plue logo is click to display is ok but there is not have terminator button or cancel button to add the both and terminator button like x in right top side. and in aggeration field not understanding give clearly there is displaying only v a o correctly and project page add the side navigation for like menu for account details, app logo, change password, account session. first display the account details to click to display that only section. the change password is ok but add forgot password also this is send to main add to create a default password and send to industry add email.
+
+in main admin page to add the user management page for view all types of users in separatly and they company, branchs, works, details and more. to add the user id in 6 digit for all it is used to mainly app users to use the id to find on any branch in same company ti fetch the details, to add the search bar for search name,branch, number, id
+
+modify the queue operator page for add the display of history of queues and details to add the search bar to find the user to display the user details and more. add the date from and to options also. and separate the currect queue and queue history in separate menu options, the queue operator in queue history displaying in vertical i need like table field format roms and column and there is displaying two search bar remove this Find user
+Search user name, phone, branch, email, or 6-digit ID. in samething changge all records in table format not like box columns . in service provider page ai can give the suggest first so modify the ai to add the text box the service provided can text the requirements to click the ai suggestion to generate not generate the first if not click that to add doctor suggest requirements only or click ask suggestion to send both doctor and ai suggestions
+
+modify the queue operator page in currect queue list there is verify automatically otherwise display the  customer in utton and allocate the service provider then enable the custormer provider and add the cancel button for cancel the token in user side and queue operator side if anyone cancel to display on both side the token is cancelled. and modify the titles of industry admin, queue operator and service provider like the industry admin create a branch of hospital industry admin as display manager, queue operator display as Token Desk Shaff and provider display like doctor. this names are replace on all pages and starting creating side ask default name and customer name in radio button if default name is click to automatically assign on default names otherwise click the customer name to display three users for get the name in text input method. and add the anytime change setting in industry admin in setting page like separatly add the industry setting in add all industry setting in part by part and add this both default and customer name setting like samething add the school/college in principal or school admin, front offica shaff, teacher or faculty, in bank branch manager, token counter staff, bank official teller, in hotal as hotal manager, receptionist, service staff or manager, in office or company as office manager, front desk executive, executive or consultand, in government office as department admin, service counter staff, officer or clerk. in i metion like or one or more names call for same role so you automatically give me multiple names is each role like to select the industry of hospital to ask set the three users such service provider like ask doctor or nurse or anything this is give like listbox input not like text input in default names if the user click customer name to ask the text input.add the industry setting in section of inside of profile not dashboard page. to add the both industru admin and main admin to see who are in online to display in green dot the user is close or not action in 10min to move on offline to change on red dot.
+
+
+add the map api for address to give the state, city automatically display the pincode or pincode given automatically fill the address for it. add the google map for branch created place is mark like branch logo on normal user page if the map in logo is click to display the details and form for token or select on branch in form to automatically move on that map location and start the travel time on map in user page and add the user control for map on or off the travelling path, find the reach timing and more in user page. and separate the address input in state, city, area, pincode in all use cases
+
+modify the project for add the security for data encrytions, data security, and more. to add the new secret section for only main admin who are use this app to track and display the device simple details like place, name, and more in separate table with the permission of users to add the register page in terms and conditions to set the on below to click the checkbox then enable the create button. then same users can using now so automatically set terms and conditions accepts and ask the allow for share the device details to allow to display on admin section or not allow to display unknown user. there is not problem. and modify the secret section move to topside in secret logo to click to ask a password admin@queue.com to have default 1234 password, and add the setting to change the secret password in separate section in profile page. and modify the terms and conditions in register page to display the terms and condition in link format text to click to display the popup message in display the full terms and conditions details and add the x button on top-right side of popup to back to page.
+
+in main admin, industry admin and operater pages to add the analysis and excel and pdf report export method on each data table or any data pages to have the right top of data container to display the export button to clickt to ask excel or pdf to click anyone to download on that format. to modify the main admin page in add another log for display the user events in past to current each logs can store llike login, logout, token generate and more. to add the normal user page to add the cancel token button to cancel the generate token that time display the token is cancel on operator page and automatically cancel and remove on queue order without asking the permission to operator. to add the priority add to operator for emergeny there is have the button on normal user to display the emergency button on after token generate the token on this button also to make the emergeny to display on operator, the operator have accept emergency only the token can move on first side otherwise there is not consiter for emergency only normall queue other and same this operator have cancel emergency and normal user also have cancel emergency button this is not distrub to currect service taken token user but this is display on service provider after the operator accept the emergency if not , dont display on service provider.
+
+to add the industry admin in branch setting page to have the on and off the emergency method for on to display and work the process of emergency or off dont display the emergency button on user and dont work on emergency works, in normal user page to generate the token side displaying default and customer name part remove that. to add the queue pause and resume button on operator and service provider to are handle and display to users, industry  and both service provider and operator. and click the pause to ask the reason then automatically wait the queue process then resume to automatically move the same order this is send the notifications to users. and i told to add the queue pause botton on operator and service prodiver not in industry admin. and modify the main admin in user managerment to clcik any user to access to edit or delete in admin same thing industrys and brancher also. give me full control to main admin.
+
+i create a separate loading code outside of loading.html that replace on inside of project and modify the full progam to loading or waiting or network issue to load all side display that in center side of screen in normal small size. and add the navigation on all page taken on outside of navigation.html. that is display all instands of menus all devices display on down side change the matching color for both navigation and loading but dont change the style and methods. in navigation display the lable based on click that remove dont taken that, that is just example. dont change other add on all pages give me correct for only menu not taken the title home button and profile button. but inside of profile have separate parts that taken on navigation in at time dont display pervious menus on profile page and additional add the home icon to move on home page only in profile page. to modify the queue loading for remove the white background to change for transparent background. and replave the navigation menu bar in bottom side not top side and nav bar is display on bottom to top just 10 15 px. and in admin page the secret button also add on navigation bar. and not loadthe loading in all time, there is unccessary to loading always correct it.
+
+i need only title name on top side of nav bar not like default title. to add the tilte element in only display on top of nav not default title. like previous update
+
+<31/05/2026>
+
+to modify the program for run for frontend and backend in docker because the deploy is performance is more slow to improve the speed in docker to add the kebernets to repicaset in 2 for deploment and add the docker volumns. to change the database as mongodb database for all store the data. to add the cache memory for all users to store only need data for login once not ask again to login, the user can logout to ask login. remove the allow for location permission and remove this field on main admin. and the profile images not uploading and not store on db the page is refresh the data and image is not displayng this all correct and add the docker, kubernets and more devops tools for fast , db and monitor and prepare the word doc for what new joins. add the terms and conditions for real app lke what are data can need from users and uses and app tearns in terms and condition. and add the new pages for only the backend or frontend loading or updating to display thepage in the project is updating please try later with timing and display the loading and downside to display updating ..., if the backend or frontend updating only display the update label on loading otherwise not display, and modify like pervious menus there is not hover in zoom like a mac system the menu is not reight end to modify on center on bottom side, to modify the scorll bar in color, rectangle border, like apps. the menu on icon is hover to zoom but not displaying so you can allow the overflow on menu nav, remove the borders of top and bottom on icon add only right and left without rounded border, the end of page is top on menu bar so add the space or anything to display the end of pages in top of menu in down scroll because the page is scroll on downside to hidden on front of menu. remove the name on profile button to display only profile on only right side. remove the labels on menu bar to add the title elements like to hover the menu to displauy on top of menu with round borders or click the menu to display 2 sec the title element not display the title element like default black color. to remove the loading page in all label only display the loading animation and Queue loadiing ... .the icon is not more up like up and zoom . the icon not i told to out on menu bar, the menu can zoom to allow for overflow on outside of menubar. correct the icons are hover not more up on menubar. if the project is complie or network issue or uploading or any thing to display the loading not display always. the loading boarder animation is fixed not moving to correct it. modify the border loading not like whole border round just like the snake can circule the border and the menu icons not hover to display on outside of nav. i told the icon zoom and little up to display on little outside of nav to overflow on zoom. dont fully icon can outside of nav. the nav menu bar is not full screen the width only small in size. the page can scroll to display the end of page is top of menu bar. the menu bar color to add the blur.
+
+<01/06/2026>
+
+correct the data storing for i uploaded the image there is not displaying after refrash, and not storing the data you can check and correct on store the main data on mongodb and cache and temp data store on docker volume. to add the welcome page to display the logo i added on image/logo.png that display on center of welcome page to add the top side this project name, bottom side display like producted by callback. in all users profile button in account setting section the image display on center little big include the camera icon on bottom of semi circule in image circule space to click the icon to ask to upload new image to change the image apply this to all image changes setting to remove upload input type on setting change on above method. to allow the edit on terms and conditions on main admin there is displaying but able to edit. to modify the edit button to display like pencil icon and delete button like turstpin icon in small width and height. to add the dark mode this change button not display on dashboard to have in profile in create a new section of theme in include the all display, screen and app setting for all users with correct role permission. in main admin and industry admin in theme setting to add the color theme to include theme-1, theme-2 color if user can give theme-1 not theme-2 to taken the theme-1 color to change that color on app theme on that main admin can change to change only main admin not others, if industry admin can change to chnage on your all branchs of opertors and service providers. then the theme-1 and theme-2 both are given to change mixed on both colors. samething to add the two font colors with add one font style. to display multiple colors, font styles. the normal users not display this theme setting. only display on industry admin and main admin. see this image is out of cicrle correct file on circle not overflow and move this on top of account ssetting. to click the profile on top side to move on downside animation to display this image upload part and modify the camera icon on display haft of circle. the theme color is not changing. to add the new field on db table for this color theme for save and display till change and add the default color button to click to reset the default color.
+
+
+to modify the register page after complete the registration to ask the comfirm the phone number to send the verification code to this phone number to display with edit button and send button. if user can click the edit button to able to edit the number otherthing click the send to send the sms of 4 digit opt to that number by using free source of firebase and display verification code from this project dont share others like it. then the user can successfully verify and move on dashboard. in all user account setting the phone number and email input box right side to display the circle the user can verify to display the green circle with tick mark in circle if not verify to display empty circle with display verify button to verify the phone number and email. if user can already register but not verify to display verify button on phone and email. the email can verify in 6 digit opt number send by using free sorce of nodemailer. the verification input can ask like separate boxes on square shape if correct the opt automatically accept but include the accept button on verification input getting side. to ask the allow for send sms and email to users, and add this allows and verification process in terms and conditions.
+
+modify the loading border like Conic gradient spins around the card edge, to add the Skeleton Loading Shimmer reload effect, in main admin and industry admin in user management section to display the user profile image in circule and name only to hover the user continer to like Card Flip animation to display the user details and edit and delete buttons.
+
+Add a new feature to my existing AI Queue Management System called:
+
+"TV Cast / External Display Mode"
+
+IMPORTANT:
+- Do not rebuild the application.
+- Do not modify existing queue logic, authentication, database structure, operator workflow, or token management.
+- Only add the new TV Cast feature, routes, components, services, UI, and live synchronization.
+
+==================================================
+FEATURE OVERVIEW
+==================================================
+
+Create a new section called:
+
+TV Cast Settings
+
+inside the Operator Profile / Settings page.
+
+The operator should be able to display live queue information on external displays using three connection methods:
+
+1. HDMI Display Mode
+2. Website URL Display Mode
+3. Bluetooth / WiFi Display Mode
+
+==================================================
+TV CAST SETTINGS UI
+==================================================
+
+Add a new "TV Cast" section with cards for:
+
+- HDMI Display
+- Website URL Display
+- Bluetooth / WiFi Display
+
+Each card should display:
+- Connection status
+- Device information
+- Last sync time
+- Connect button
+- Disconnect button
+- Settings button
+
+Use modern glassmorphism UI with smooth animations.
+
+==================================================
+METHOD 1: HDMI DISPLAY MODE
+==================================================
+
+Add:
+
+"Open HDMI Display Mode"
+
+button.
+
+When clicked:
+
+- Open TV Display page in a new browser window/tab.
+- Allow operator to move the display to a TV connected through HDMI.
+- Add Full Screen button.
+- Add Auto Full Screen mode.
+- Add Refresh Display button.
+
+Requirements:
+
+- Large TV optimized layout.
+- Works on Full HD and 4K displays.
+- Live updates without refresh.
+
+==================================================
+METHOD 2: WEBSITE URL DISPLAY MODE
+==================================================
+
+Generate a unique display URL.
+
+Example:
+
+/tv-display/:branchId/:counterId
+
+Features:
+
+- Copy Display URL
+- Open Display URL
+- Generate QR Code
+- Regenerate URL
+- Display Status
+- Auto Reconnect
+
+The display URL can be opened from:
+
+- Smart TV Browser
+- Android TV
+- Fire TV Stick
+- Raspberry Pi
+- Mini PC
+- Laptop
+- Tablet
+
+==================================================
+METHOD 3: BLUETOOTH / WIFI DISPLAY MODE
+==================================================
+
+Add:
+
+"Bluetooth / WiFi Connect"
+
+button.
+
+Open connection modal containing:
+
+- Scan Devices
+- Connect Device
+- Disconnect Device
+- Connection Status
+- Device Name
+- Signal Strength
+- Last Synced Token
+- Send Test Token
+- Auto Sync Toggle
+- Reconnect Button
+
+Bluetooth Requirements:
+
+- Use Web Bluetooth API when supported.
+- Check browser compatibility.
+- Show fallback warning if unsupported.
+
+WiFi Requirements:
+
+- Support local network display devices.
+- Support ESP32 display receivers.
+- Support Raspberry Pi display receivers.
+- Support custom queue display hardware.
+
+Bluetooth/WiFi should only send queue data.
+
+Do NOT attempt to stream the entire website through Bluetooth.
+
+Example data:
+
+{
+  "currentToken": "A102",
+  "nextToken": "A103",
+  "counter": "03",
+  "serviceProvider": "Dr. Kumar",
+  "status": "Serving",
+  "message": "Token A102 please proceed to Counter 03"
+}
+
+Fallback Message:
+
+"Bluetooth display connection is not supported on this device. Please use HDMI Display Mode or Website URL Display."
+
+==================================================
+TV DISPLAY PAGE
+==================================================
+
+Create route:
+
+/tv-display/:branchId/:counterId
+
+This page is designed for TVs and public display screens.
+
+Show ONLY:
+
+- Current Token
+- Next Token
+- Recently Served Token
+- Counter Number
+- Service Provider
+- Department
+- Queue Status
+- Current Date
+- Current Time
+
+Do NOT show:
+
+- Admin controls
+- Operator controls
+- Login information
+- Private customer details
+
+==================================================
+REAL-TIME SYNCHRONIZATION
+==================================================
+
+Automatically update TV display when:
+
+- Call Next is clicked
+- Current token changes
+- Next token changes
+- Counter changes
+- Service provider changes
+- Queue status changes
+
+Use:
+
+- Existing WebSocket
+- Socket.IO
+- Firebase Realtime Database
+- Firestore Listener
+
+If unavailable:
+
+Implement polling fallback every 3 seconds.
+
+==================================================
+TV DISPLAY ANIMATIONS
+==================================================
+
+When Call Next is triggered:
+
+Current Token:
+- Slide left
+- Scale down
+- Fade out
+
+Next Token:
+- Slide from right
+- Scale up
+- Become current token
+
+New Next Token:
+- Appear on right side
+
+Add:
+
+- Smooth transitions
+- Glow effect
+- Pulse effect
+- Professional queue movement
+
+==================================================
+QUEUE VISUALIZATION
+==================================================
+
+Center Area:
+
+Display animated queue person:
+
+- Circular glowing head
+- Cylinder body
+- Neon blue color
+- Modern futuristic style
+
+Display current token inside or near the person.
+
+Below display:
+
+Serving By:
+[Service Provider Name]
+
+Counter:
+[Counter Number]
+
+==================================================
+BOTTOM ANNOUNCEMENT BAR
+==================================================
+
+Add scrolling marquee announcements:
+
+- Please wait for your token number.
+- Proceed to the assigned counter when called.
+- Keep your documents ready.
+- Thank you for your patience.
+- Follow staff instructions.
+
+==================================================
+DESIGN STYLE
+==================================================
+
+Use:
+
+- Hospital Queue Display style
+- Airport Boarding Display style
+- Bank Token Display style
+- Futuristic AI Dashboard theme
+- Blue Neon Accents
+- Glassmorphism Cards
+- Smooth Animations
+- Large Readable Numbers
+- Full Screen TV Layout
+
+Support:
+
+- 1366x768
+- 1920x1080
+- 2560x1440
+- 4K Displays
+
+==================================================
+OUTPUT REQUIREMENTS
+==================================================
+
+Generate ONLY:
+
+- New components
+- Routes
+- Services
+- Hooks
+- Helper functions
+- Modal UI
+- TV Display UI
+- Bluetooth/WiFi integration
+- HDMI display integration
+- QR code generation
+- Real-time synchronization integration
+- Installation steps
+
+Reuse existing queue APIs, state management, and database.
+
+Do not modify existing queue functionality.
+
+<02/06/2026>
+
+to add the right bottom side top arrow for move on top side in welcome. and i run the frontend on vercel server connect and run on it and ci and cd on github action and backend is same not change.modify in welcome page to change the label of login to get start label. same the frontend aslo run on docker in vercel server. and check the kubernets are running and working or not.
+
+<04/06/2026>
+
+i can created the guilden chatbot for this project you can add and test the guiden is correct or an changes need and comfirm the give me steps are correct to fellow on this app. i created on this path take and add this project separetly this project E:\Projects\Live\ChatBot\qentra-guide-assistant.i told you add this project separatly but run on same like frontend and backend of ai-queue-app is run automatically this also run not additional running. correct it
+
+<06/06/2026>
+
+add the alert animations and styles by taking this program to add on correct alerts and add like same and use normal style not like chatgpt style. taken from file:///C:/Users/Mr_Asmath_/Downloads/test3.html. the alerts are display on outside of container and take 5secto hide to display the timeline animation in alert bottom border side like loading method. see this the alert inside of container i need outside of contariner in topside. the ai is click to display the top of ai chatbot in hide.so to move the bottom side of ai chatbot button. and change the ai logo to chatbot message icon from material icon.
+
+Modify the existing alert/notification system only.
+
+Requirements:
+
+1. Do NOT change any existing UI, layout, colors, animations, pages, components, logic, routes, APIs, or styling outside the alert system.
+
+2. All alerts must be displayed as a fixed notification on the screen, not inside page containers.
+
+3. Alert position:
+
+   * Fixed to viewport
+   * Top center of screen
+   * Always visible even when user scrolls to the bottom of the page
+   * Highest z-index
+
+4. Use:
+
+```css
+position: fixed;
+top: 20px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 99999;
+```
+you add the alert there is dislayig top of page in z index but i need to display top of screen. like the alert is can the user can in end page screen the alert is not display so i need to change fixed on screen top side the user can end of screen to display in top side of screen. correct for like this

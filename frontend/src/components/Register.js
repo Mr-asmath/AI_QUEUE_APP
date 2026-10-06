@@ -54,7 +54,7 @@ function Register({ onRegister, onSwitchToLogin }) {
       const response = await fetch(apiPath('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...userForm, terms_accepted: termsAccepted, messaging_consent: messagingConsent })
+        body: JSON.stringify({ ...userForm, terms_accepted: termsAccepted })
       });
       const data = await response.json();
       if (!data.success) {
@@ -70,9 +70,7 @@ function Register({ onRegister, onSwitchToLogin }) {
       });
       const loginData = await loginResponse.json();
       if (loginData.success) {
-        setPhoneDraft(loginData.user.phone || userForm.phone || '');
-        setRegistrationStep('phone-confirm');
-        setMessage('Account created. Confirm your phone number before opening the dashboard.');
+        onRegister(loginData.user);
       }
     } catch (err) {
       setError('Backend is not reachable.');
@@ -212,15 +210,7 @@ function Register({ onRegister, onSwitchToLogin }) {
                 and data security policy.
               </span>
             </label>
-            <label className="terms-check">
-              <input
-                type="checkbox"
-                checked={messagingConsent}
-                onChange={(event) => setMessagingConsent(event.target.checked)}
-              />
-              <span>I allow this app to send verification SMS and email codes to my phone/email.</span>
-            </label>
-            <button type="submit" disabled={loading || !termsAccepted || !messagingConsent}>{loading ? 'Creating...' : 'Create User Account'}</button>
+            <button type="submit" disabled={loading || !termsAccepted}>{loading ? 'Creating...' : 'Create User Account'}</button>
           </form>
         ) : mode === 'user' && registrationStep === 'phone-confirm' ? (
           <section className="verification-panel">
